@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Claude Assistant</string>
+    <string name="tile_label">Claude</string>
+    <string name="hint_input">Nachricht eingeben…</string>
+    <string name="btn_mic_desc">Spracheingabe</string>
+    <string name="btn_send_desc">Senden</string>
+    <string name="status_thinking">Claude denkt nach…</string>
+    <string name="status_ready">Wie kann ich dir helfen?</string>
+    <string name="error_no_response">Fehler: Keine Antwort</string>
+    <string name="speech_cancelled">Spracheingabe abgebrochen. Du kannst auch tippen.</string>
+</resources>
