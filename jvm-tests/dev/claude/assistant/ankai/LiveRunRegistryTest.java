@@ -74,4 +74,32 @@ public final class LiveRunRegistryTest {
         } catch (IllegalArgumentException expected) {
         }
     }
+
+    public void testObserverGetsCurrentAndFutureSnapshots() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        run.accept(new LiveRunEvent("assistant", "Schon da"));
+        java.util.List<LiveRunSnapshot> snapshots = new java.util.ArrayList<>();
+
+        LiveRunSubscription subscription = run.observe(snapshots::add);
+        run.accept(new LiveRunEvent("assistant", "Neu"));
+        run.accept(new LiveRunEvent("done", null));
+
+        Assert.eq(3, snapshots.size());
+        Assert.eq("Schon da", snapshots.get(0).text());
+        Assert.eq("Schon da\n\nNeu", snapshots.get(1).text());
+        Assert.isTrue("Done-Snapshot fehlt", snapshots.get(2).isDone());
+        subscription.close();
+    }
+
+    public void testClosedObserverStopsUpdatesWithoutStoppingRun() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        java.util.List<LiveRunSnapshot> snapshots = new java.util.ArrayList<>();
+        LiveRunSubscription subscription = run.observe(snapshots::add);
+
+        subscription.close();
+        run.accept(new LiveRunEvent("assistant", "Laeuft weiter"));
+
+        Assert.eq(1, snapshots.size());
+        Assert.eq("Laeuft weiter", run.text());
+    }
 }

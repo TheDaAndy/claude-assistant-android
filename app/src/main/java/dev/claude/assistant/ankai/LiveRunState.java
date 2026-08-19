@@ -1,5 +1,8 @@
 package dev.claude.assistant.ankai;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
  * Thread-sicherer lokaler Zustand eines sichtbaren Chatlaufs.
  *
@@ -13,6 +16,7 @@ public final class LiveRunState implements LiveRunListener {
     private final String sessionId;
     private final String runId;
     private final StringBuilder text = new StringBuilder();
+    private final List<LiveRunObserver> observers = new CopyOnWriteArrayList<>();
     private boolean overlayAttached;
     private boolean speechAllowed = true;
     private boolean done;
@@ -56,21 +60,45 @@ public final class LiveRunState implements LiveRunListener {
         speechAllowed = false;
     }
 
+    /**
+     * Meldet eine UI an und liefert sofort den aktuellen Zustand. Netzwerk-
+     * Callbacks laufen auf Hintergrundthreads; die Android-UI muss daher bei
+     * Bedarf selbst auf ihren Main-Thread wechseln.
+     */
+    public LiveRunSubscription observe(LiveRunObserver observer) {
+        if (observer == null) throw new IllegalArgumentException("Observer fehlt");
+        observers.add(observer);
+        observer.onChanged(snapshot());
+        return () -> observers.remove(observer);
+    }
+
+    public synchronized LiveRunSnapshot snapshot() {
+        return new LiveRunSnapshot(sessionId, runId, text.toString(), done, speechAllowed);
+    }
+
     @Override
     public void onEvent(LiveRunEvent event) {
         accept(event);
     }
 
-    public synchronized void accept(LiveRunEvent event) {
+    public void accept(LiveRunEvent event) {
         if (event == null || event.type == null) return;
-        if ("assistant".equals(event.type)) {
-            String addition = blankToNull(event.text);
-            if (addition != null) {
-                if (text.length() > 0) text.append("\n\n");
-                text.append(addition);
+        LiveRunSnapshot changed = null;
+        synchronized (this) {
+            if ("assistant".equals(event.type)) {
+                String addition = blankToNull(event.text);
+                if (addition != null) {
+                    if (text.length() > 0) text.append("\n\n");
+                    text.append(addition);
+                    changed = snapshot();
+                }
+            } else if ("done".equals(event.type)) {
+                done = true;
+                changed = snapshot();
             }
-        } else if ("done".equals(event.type)) {
-            done = true;
+        }
+        if (changed != null) {
+            for (LiveRunObserver observer : observers) observer.onChanged(changed);
         }
     }
 
