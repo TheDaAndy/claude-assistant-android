@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.VoiceSubmission;
-import dev.claude.assistant.ankai.LiveRunCoordinator;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.AnkaiRoutingException;
@@ -167,8 +166,7 @@ public class AssistActivity extends Activity {
         try {
             VoiceSubmission submission = new VoiceSubmission(
                     EncryptedPrefsSecretStore.connectionStore(getApplicationContext()),
-                    new LiveRunCoordinator(
-                            EncryptedPrefsSecretStore.activeRunStore(getApplicationContext())));
+                    LiveRunRuntime.coordinator(getApplicationContext()));
             runOnUiThread(() -> responseView.setText(getString(R.string.status_uploading)));
             dev.claude.assistant.ankai.VoiceResult result = projectId == null
                     ? submission.submit(filename, "audio/mp4", audio, this::displayVoiceProgress)

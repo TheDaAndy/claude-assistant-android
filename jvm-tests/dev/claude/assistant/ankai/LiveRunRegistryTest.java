@@ -53,6 +53,17 @@ public final class LiveRunRegistryTest {
         Assert.eq("run-1", reconnected.runId());
     }
 
+    public void testLatestReturnsMostRecentlyStartedRunWithoutReconnectReordering() {
+        LiveRunRegistry registry = new LiveRunRegistry();
+        LiveRunState first = registry.start("session-old", "run-old");
+        LiveRunState second = registry.start("session-new", "run-new");
+
+        Assert.isTrue("Neuster Lauf fehlt", second == registry.latest());
+        Assert.isTrue("Reconnect muss Zustand behalten",
+                first == registry.start("session-old", "ignored"));
+        Assert.isTrue("Reconnect darf Laufreihenfolge nicht aendern", second == registry.latest());
+    }
+
     public void testSnapshotContainsParallelRunsWithoutExposingRegistryMap() {
         LiveRunRegistry registry = new LiveRunRegistry();
         registry.start("session-1", "run-1");

@@ -15,6 +15,10 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+import dev.claude.assistant.ankai.LiveRunSnapshot;
+import dev.claude.assistant.ankai.LiveRunState;
+import dev.claude.assistant.ankai.LiveRunSubscription;
+
 public class AssistantDialogActivity extends Activity {
     private static final int SPEECH_REQUEST_CODE = 100;
 
@@ -24,6 +28,8 @@ public class AssistantDialogActivity extends Activity {
     private ImageButton sendButton;
 
     private BroadcastReceiver responseReceiver;
+    private LiveRunState observedRun;
+    private LiveRunSubscription liveRunSubscription;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +45,25 @@ public class AssistantDialogActivity extends Activity {
         sendButton.setOnClickListener(v -> sendToClaudeCode());
 
         setupResponseReceiver();
+        observeLatestRun();
+    }
+
+    private void observeLatestRun() {
+        observedRun = LiveRunRuntime.coordinator(getApplicationContext()).registry().latest();
+        if (observedRun == null) return;
+        observedRun.attachOverlay();
+        liveRunSubscription = observedRun.observe(this::displayLiveRun);
+    }
+
+    private void displayLiveRun(LiveRunSnapshot snapshot) {
+        runOnUiThread(() -> {
+            String text = snapshot.text();
+            if (text == null || text.isEmpty()) {
+                responseView.setText(getString(R.string.status_thinking));
+            } else {
+                responseView.setText(text);
+            }
+        });
     }
 
     private void setupResponseReceiver() {
@@ -107,9 +132,11 @@ public class AssistantDialogActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
+        if (liveRunSubscription != null) liveRunSubscription.close();
+        if (observedRun != null) observedRun.closeOverlay();
         if (responseReceiver != null) {
             unregisterReceiver(responseReceiver);
         }
+        super.onDestroy();
     }
 }

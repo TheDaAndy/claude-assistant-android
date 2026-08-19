@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Prozessweiter, parallel nutzbarer Index der aktuell bekannten Chatlaeufe. */
 public final class LiveRunRegistry {
 
     private final ConcurrentMap<String, LiveRunState> runs = new ConcurrentHashMap<>();
+    private final AtomicReference<LiveRunState> latest = new AtomicReference<>();
 
     /**
      * Legt einen Lauf an oder liefert beim Reconnect denselben Zustand wieder.
@@ -16,7 +18,18 @@ public final class LiveRunRegistry {
      */
     public LiveRunState start(String sessionId, String runId) {
         String key = requireSessionId(sessionId);
-        return runs.computeIfAbsent(key, ignored -> new LiveRunState(key, runId));
+        LiveRunState existing = runs.get(key);
+        if (existing != null) return existing;
+        LiveRunState created = new LiveRunState(key, runId);
+        LiveRunState raced = runs.putIfAbsent(key, created);
+        if (raced != null) return raced;
+        latest.set(created);
+        return created;
+    }
+
+    /** Zuletzt erstmals registrierter Lauf, geeignet als Standard fuer ein neues Overlay. */
+    public LiveRunState latest() {
+        return latest.get();
     }
 
     public LiveRunState get(String sessionId) {

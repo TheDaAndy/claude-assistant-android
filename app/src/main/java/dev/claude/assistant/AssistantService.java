@@ -45,8 +45,7 @@ public class AssistantService extends Service {
         AnkaiConnectionStore connections = EncryptedPrefsSecretStore.connectionStore(this);
         AnkaiConnection connection = connections.load();
         if (connection == null) return;
-        LiveRunCoordinator coordinator = new LiveRunCoordinator(
-                EncryptedPrefsSecretStore.activeRunStore(this));
+        LiveRunCoordinator coordinator = LiveRunRuntime.coordinator(this);
         for (LiveRunState run : coordinator.registry().snapshot()) {
             if (!reconnectingSessions.add(run.sessionId())) continue;
             reconnectExecutor.execute(() -> reconnect(connections, connection, coordinator, run));
