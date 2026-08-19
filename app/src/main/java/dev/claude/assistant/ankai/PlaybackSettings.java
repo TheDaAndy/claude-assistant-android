@@ -5,6 +5,8 @@ public final class PlaybackSettings {
     private static final String KEY_AUTOPLAY = "playback.autoplay";
     private static final String KEY_ENGINE_PACKAGE = "playback.engine_package";
     private static final String KEY_VOICE_NAME = "playback.voice_name";
+    private static final String KEY_SPEECH_RATE = "playback.speech_rate";
+    private static final float DEFAULT_SPEECH_RATE = 1.0f;
 
     private final SecretStore store;
 
@@ -56,6 +58,26 @@ public final class PlaybackSettings {
             store.remove(KEY_VOICE_NAME);
         } else {
             store.put(KEY_VOICE_NAME, value);
+        }
+    }
+
+    /** Die Auswahl bleibt bewusst in einem gut verstaendlichen Bereich. */
+    public float getSpeechRate() {
+        String value = store.get(KEY_SPEECH_RATE);
+        if (value == null) return DEFAULT_SPEECH_RATE;
+        try {
+            float rate = Float.parseFloat(value);
+            return rate >= 0.8f && rate <= 1.2f ? rate : DEFAULT_SPEECH_RATE;
+        } catch (NumberFormatException ignored) {
+            return DEFAULT_SPEECH_RATE;
+        }
+    }
+
+    public void setSpeechRate(float rate) {
+        if (!Float.isFinite(rate) || rate < 0.8f || rate > 1.2f) {
+            store.remove(KEY_SPEECH_RATE);
+        } else {
+            store.put(KEY_SPEECH_RATE, Float.toString(rate));
         }
     }
 }

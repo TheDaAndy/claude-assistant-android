@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private Switch autoplaySwitch;
     private Spinner engineSpinner;
     private Spinner voiceSpinner;
+    private Spinner speechRateSpinner;
     private Button voicePreviewButton;
     private PlaybackSettings playbackSettings;
     private VoicePreviewController voicePreview;
@@ -66,6 +67,7 @@ public class MainActivity extends Activity {
         autoplaySwitch.setOnCheckedChangeListener((button, enabled) ->
                 playbackSettings.setAutoplayEnabled(enabled));
         loadSpeechEngines();
+        renderSpeechRates();
         voicePreviewButton.setOnClickListener(view -> voicePreview.preview(
                 getString(R.string.playback_voice_preview_text)));
 
@@ -98,7 +100,29 @@ public class MainActivity extends Activity {
         autoplaySwitch = findViewById(R.id.ankai_autoplay);
         engineSpinner = findViewById(R.id.playback_engine);
         voiceSpinner = findViewById(R.id.playback_voice);
+        speechRateSpinner = findViewById(R.id.playback_speech_rate);
         voicePreviewButton = findViewById(R.id.playback_voice_preview);
+    }
+
+    private void renderSpeechRates() {
+        List<SpeechRateChoice> choices = new ArrayList<>();
+        choices.add(new SpeechRateChoice(0.8f, getString(R.string.playback_rate_slow)));
+        choices.add(new SpeechRateChoice(1.0f, getString(R.string.playback_rate_normal)));
+        choices.add(new SpeechRateChoice(1.2f, getString(R.string.playback_rate_fast)));
+        ArrayAdapter<SpeechRateChoice> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        speechRateSpinner.setAdapter(adapter);
+        float selectedRate = playbackSettings.getSpeechRate();
+        speechRateSpinner.setSelection(selectedRate == 0.8f ? 0 : selectedRate == 1.2f ? 2 : 1,
+                false);
+        speechRateSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
+            Object selected = speechRateSpinner.getItemAtPosition(position);
+            if (selected instanceof SpeechRateChoice) {
+                voicePreview.close();
+                playbackSettings.setSpeechRate(((SpeechRateChoice) selected).rate);
+            }
+        }));
     }
 
     private void loadSpeechEngines() {
@@ -324,6 +348,18 @@ public class MainActivity extends Activity {
 
         boolean nameEquals(String other) {
             return name == null ? other == null : name.equals(other);
+        }
+
+        @Override public String toString() { return label; }
+    }
+
+    private static final class SpeechRateChoice {
+        final float rate;
+        final String label;
+
+        SpeechRateChoice(float rate, String label) {
+            this.rate = rate;
+            this.label = label;
         }
 
         @Override public String toString() { return label; }

@@ -26,11 +26,13 @@ final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInit
     private boolean ready;
     private boolean closed;
     private final String voiceName;
+    private final float speechRate;
 
     AndroidSpeechPlayback(Context context, PlaybackSettings settings) {
         Context applicationContext = context.getApplicationContext();
         String enginePackage = settings == null ? null : settings.getEnginePackage();
         voiceName = settings == null ? null : settings.getVoiceName();
+        speechRate = settings == null ? 1.0f : settings.getSpeechRate();
         tts = enginePackage == null
                 ? new TextToSpeech(applicationContext, this)
                 : new TextToSpeech(applicationContext, this, enginePackage);
@@ -67,6 +69,7 @@ final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInit
             return;
         }
         tts.setLanguage(Locale.GERMAN);
+        tts.setSpeechRate(speechRate);
         if (voiceName != null && tts.getVoices() != null) {
             for (Voice voice : tts.getVoices()) {
                 if (voiceName.equals(voice.getName())) {

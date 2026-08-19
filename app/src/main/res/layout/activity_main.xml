@@ -163,6 +163,18 @@
             android:text="@string/playback_voice_preview" />
 
         <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/playback_speech_rate"
+            android:textColor="@color/text_secondary" />
+
+        <Spinner
+            android:id="@+id/playback_speech_rate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/playback_engine_hint"

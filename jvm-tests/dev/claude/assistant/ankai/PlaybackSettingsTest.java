@@ -94,4 +94,31 @@ public final class PlaybackSettingsTest {
         store.put("playback.voice_name", "voice\nname");
         Assert.isTrue("Steuerzeichen", new PlaybackSettings(store).getVoiceName() == null);
     }
+
+    public void testSprechgeschwindigkeitIstStandardmaessigNormal() {
+        PlaybackSettings settings = new PlaybackSettings(
+                new AnkaiConnectionStoreTest.MemoryStore());
+
+        Assert.eq("1.0", Float.toString(settings.getSpeechRate()));
+    }
+
+    public void testSprechgeschwindigkeitKannGespeichertWerden() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setSpeechRate(1.2f);
+
+        Assert.eq("1.2", Float.toString(new PlaybackSettings(store).getSpeechRate()));
+    }
+
+    public void testUngueltigeSprechgeschwindigkeitFaelltAufNormalZurueck() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setSpeechRate(4.0f);
+        Assert.eq("1.0", Float.toString(settings.getSpeechRate()));
+
+        store.put("playback.speech_rate", "keine-zahl");
+        Assert.eq("1.0", Float.toString(new PlaybackSettings(store).getSpeechRate()));
+    }
 }
