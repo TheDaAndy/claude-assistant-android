@@ -18,3 +18,9 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
   `POST /api/auth/logout` und verwirft das Cookie lokal.
 - `INTERNET`- und `ACCESS_NETWORK_STATE`-Berechtigung im Manifest.
 - Abhaengigkeitsfreie JVM-Testsuite (`jvm-tests/`, `./run-jvm-tests.sh`), lauffaehig ohne Android-SDK.
+- Sichere Ablage der Ankai-Verknuepfung: `SecretStore` (android-freie Schnittstelle),
+  `AnkaiConnection` (Verknuepfung inkl. Default-Projekt und Sessioncookie, Passwort nicht in `toString`),
+  `AnkaiConnectionStore` (speichern/laden/loeschen, Default-Projekt setzen, Cookie uebernehmen)
+  und `EncryptedPrefsSecretStore` auf Basis von `EncryptedSharedPreferences` mit Android-Keystore-Masterkey.
+- `AnkaiClient.useSessionCookie(...)`, damit ein gespeichertes Cookie nach App-Neustart weitergenutzt wird.
+- Abhaengigkeit `androidx.security:security-crypto`.

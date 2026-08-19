@@ -45,6 +45,11 @@ public final class AnkaiClient {
         return sessionCookie;
     }
 
+    /** Uebernimmt ein zuvor gespeichertes Sessioncookie, um eine erneute Anmeldung zu sparen. */
+    public void useSessionCookie(String cookie) {
+        this.sessionCookie = cookie == null || cookie.trim().isEmpty() ? null : cookie.trim();
+    }
+
     /** Prueft die Verknuepfung und liefert den angemeldeten Benutzernamen. */
     public String verifyConnection() throws IOException {
         HttpURLConnection connection = open("/api/auth/session", "GET");
