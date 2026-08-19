@@ -1,6 +1,7 @@
 package dev.claude.assistant.ankai;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -21,6 +22,7 @@ public final class LiveRunState implements LiveRunListener {
     private boolean speechAllowed = true;
     private boolean done;
     private SpeechPlayback speechPlayback;
+    private final List<String> replayedHistory = new ArrayList<>();
 
     LiveRunState(String sessionId, String runId) {
         this.sessionId = sessionId;
@@ -100,6 +102,30 @@ public final class LiveRunState implements LiveRunListener {
         return new LiveRunSnapshot(sessionId, runId, text.toString(), done, speechAllowed);
     }
 
+    /**
+     * Stellt persistierte Nachrichten wieder her. Der Snapshot aktualisiert die UI,
+     * ist aber absichtlich nicht fuer Autoplay freigegeben. Anschliessend vom
+     * /live-Endpunkt wiederholte Nachrichten werden genau einmal konsumiert.
+     */
+    public void restoreHistory(List<String> messages) {
+        LiveRunSnapshot changed;
+        synchronized (this) {
+            if (text.length() > 0) return;
+            replayedHistory.clear();
+            if (messages != null) {
+                for (String message : messages) {
+                    String value = blankToNull(message);
+                    if (value == null) continue;
+                    if (text.length() > 0) text.append("\n\n");
+                    text.append(value);
+                    replayedHistory.add(value);
+                }
+            }
+            changed = new LiveRunSnapshot(sessionId, runId, text.toString(), done, false);
+        }
+        for (LiveRunObserver observer : observers) observer.onChanged(changed);
+    }
+
     @Override
     public void onEvent(LiveRunEvent event) {
         accept(event);
@@ -112,6 +138,11 @@ public final class LiveRunState implements LiveRunListener {
             if ("assistant".equals(event.type)) {
                 String addition = blankToNull(event.text);
                 if (addition != null) {
+                    if (!replayedHistory.isEmpty() && addition.equals(replayedHistory.get(0))) {
+                        replayedHistory.remove(0);
+                        return;
+                    }
+                    replayedHistory.clear();
                     if (text.length() > 0) text.append("\n\n");
                     text.append(addition);
                     changed = snapshot();

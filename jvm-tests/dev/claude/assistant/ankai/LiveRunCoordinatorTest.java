@@ -55,6 +55,24 @@ public final class LiveRunCoordinatorTest {
         Assert.eq("session-1", store.load().get(0).sessionId());
     }
 
+    public void testReconnectRestoresHistoryBeforeOpeningLiveStream() throws Exception {
+        MemorySecretStore secrets = new MemorySecretStore();
+        ActiveRunStore store = new ActiveRunStore(secrets);
+        store.remember("session-1", "run-1");
+        LiveRunCoordinator coordinator = new LiveRunCoordinator(store);
+
+        coordinator.reconnect("session-1",
+            sessionId -> java.util.List.of("Gespeichert"),
+            (sessionId, listener) -> {
+                Assert.eq("Gespeichert", coordinator.registry().get(sessionId).text());
+                listener.onEvent(new LiveRunEvent("assistant", "Gespeichert"));
+                listener.onEvent(new LiveRunEvent("assistant", "Live neu"));
+                return true;
+            });
+
+        Assert.eq("Gespeichert\n\nLive neu", coordinator.registry().get("session-1").text());
+    }
+
     private static final class MemorySecretStore implements SecretStore {
         private final Map<String, String> values = new HashMap<>();
         public String get(String key) { return values.get(key); }

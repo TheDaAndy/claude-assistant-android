@@ -65,7 +65,7 @@ public class AssistantService extends Service {
                     return false;
                 }
             });
-            loop.run(run.sessionId(), client::streamLiveRun);
+            loop.run(run.sessionId(), client::loadAssistantHistory, client::streamLiveRun);
             connections.saveSessionCookie(client.sessionCookie());
         } finally {
             reconnectingSessions.remove(run.sessionId());

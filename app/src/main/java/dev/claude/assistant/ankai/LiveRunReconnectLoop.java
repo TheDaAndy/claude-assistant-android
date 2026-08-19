@@ -21,10 +21,15 @@ public final class LiveRunReconnectLoop {
     }
 
     public void run(String sessionId, LiveRunCoordinator.LiveStream stream) {
+        run(sessionId, null, stream);
+    }
+
+    public void run(String sessionId, LiveRunCoordinator.HistoryLoader history,
+                    LiveRunCoordinator.LiveStream stream) {
         int retry = 0;
         while (shouldReconnect(sessionId)) {
             try {
-                if (!coordinator.reconnect(sessionId, stream)) return;
+                if (!coordinator.reconnect(sessionId, history, stream)) return;
             } catch (AnkaiAuthException expiredConnection) {
                 return;
             } catch (IOException transportFailure) {

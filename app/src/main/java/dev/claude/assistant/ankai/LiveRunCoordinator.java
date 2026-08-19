@@ -35,9 +35,17 @@ public final class LiveRunCoordinator {
      * ist kein weiterer Reconnect noetig. IOException belaesst die Persistenz.
      */
     public boolean reconnect(String sessionId, LiveStream stream) throws IOException {
+        return reconnect(sessionId, null, stream);
+    }
+
+    public boolean reconnect(String sessionId, HistoryLoader history, LiveStream stream) throws IOException {
         if (stream == null) throw new IllegalArgumentException("Live-Stream fehlt");
         LiveRunState state = registry.get(sessionId);
         if (state == null) throw new IllegalArgumentException("Unbekannte Session-ID");
+
+        if (history != null && state.text().isEmpty()) {
+            state.restoreHistory(history.load(state.sessionId()));
+        }
 
         boolean active = stream.open(state.sessionId(), event -> {
             state.accept(event);
@@ -50,5 +58,10 @@ public final class LiveRunCoordinator {
     @FunctionalInterface
     public interface LiveStream {
         boolean open(String sessionId, LiveRunListener listener) throws IOException;
+    }
+
+    @FunctionalInterface
+    public interface HistoryLoader {
+        java.util.List<String> load(String sessionId) throws IOException;
     }
 }

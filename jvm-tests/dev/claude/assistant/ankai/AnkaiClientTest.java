@@ -114,6 +114,27 @@ public class AnkaiClientTest {
         }
     }
 
+    public void testSessionHistoryReturnsOnlyAssistantMessages() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/sessions/session-1", 200, "application/json",
+                "{\"session\":{\"messages\":["
+                    + "{\"role\":\"user\",\"content\":\"Frage\"},"
+                    + "{\"role\":\"assistant\",\"content\":\"Erste Antwort\"},"
+                    + "{\"role\":\"system\",\"content\":\"intern\"},"
+                    + "{\"role\":\"assistant\",\"content\":\"Zweite Antwort\"}]}}"
+            );
+
+            List<String> history = clientFor(fake).loadAssistantHistory("session-1");
+
+            Assert.eq(List.of("Erste Antwort", "Zweite Antwort"), history);
+            Assert.isTrue("Verlauf-Endpunkt muss aufgerufen werden",
+                fake.requestLog.contains("GET /api/sessions/session-1"));
+        } finally {
+            fake.stop();
+        }
+    }
+
     public void testUnknownProjectRaisesRoutingErrorWithoutGuessing() throws Exception {
         FakeAnkai fake = new FakeAnkai();
         try {

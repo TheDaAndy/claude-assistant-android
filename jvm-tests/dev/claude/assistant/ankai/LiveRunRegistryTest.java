@@ -56,6 +56,30 @@ public final class LiveRunRegistryTest {
         controller.close();
     }
 
+    public void testRestoredHistoryIsVisibleButNeverSpoken() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        new LiveRunSpeechController(run, playback);
+
+        run.restoreHistory(java.util.List.of("Alt eins", "Alt zwei"));
+        run.accept(new LiveRunEvent("assistant", "Neu"));
+
+        Assert.eq("Alt eins\n\nAlt zwei\n\nNeu", run.text());
+        Assert.eq(1, playback.spoken.size());
+        Assert.eq("Neu", playback.spoken.get(0));
+    }
+
+    public void testLiveReplayAfterHistoryDoesNotDuplicateMessages() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        run.restoreHistory(java.util.List.of("Alt eins", "Alt zwei"));
+
+        run.accept(new LiveRunEvent("assistant", "Alt eins"));
+        run.accept(new LiveRunEvent("assistant", "Alt zwei"));
+        run.accept(new LiveRunEvent("assistant", "Neu"));
+
+        Assert.eq("Alt eins\n\nAlt zwei\n\nNeu", run.text());
+    }
+
     public void testLatePlaybackRegistrationOnClosedRunStopsImmediately() {
         LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
         run.closeOverlay();

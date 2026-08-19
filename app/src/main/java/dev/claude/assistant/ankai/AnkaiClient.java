@@ -157,6 +157,30 @@ public final class AnkaiClient {
         }
     }
 
+    /** Laedt bereits persistierte Assistant-Nachrichten fuer einen Reconnect. */
+    public List<String> loadAssistantHistory(String sessionId) throws IOException {
+        String value = sessionId == null ? "" : sessionId.trim();
+        if (value.isEmpty()) throw new IllegalArgumentException("Session-ID fehlt");
+        String encoded = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        HttpURLConnection connection = open("/api/sessions/" + encoded, "GET");
+        try {
+            Map<String, Object> json = readJson(connection);
+            Map<String, Object> session = AnkaiJson.object(json, "session");
+            List<String> messages = new ArrayList<>();
+            for (Object entry : AnkaiJson.list(session, "messages")) {
+                if (!(entry instanceof Map)) continue;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> message = (Map<String, Object>) entry;
+                if (!"assistant".equals(AnkaiJson.string(message, "role"))) continue;
+                String content = AnkaiJson.string(message, "content");
+                if (content != null && !content.trim().isEmpty()) messages.add(content.trim());
+            }
+            return messages;
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     /** Trennt die Verknuepfung serverseitig und verwirft das Sessioncookie. */
     public void disconnect() {
         try {
