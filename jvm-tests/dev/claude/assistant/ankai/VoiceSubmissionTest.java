@@ -80,4 +80,24 @@ public final class VoiceSubmissionTest {
             fake.stop();
         }
     }
+
+    public void testAusgewaehltesProjektWirdOhneErneutesRoutingGesendet() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/voice", 200, "application/x-ndjson",
+                    "{\"type\":\"done\",\"sessionId\":\"s\",\"runId\":\"r\"}\n");
+            AnkaiConnectionStoreTest.MemoryStore secrets = new AnkaiConnectionStoreTest.MemoryStore();
+            AnkaiConnectionStore store = new AnkaiConnectionStore(secrets);
+            store.save(new AnkaiConnection(fake.baseUrl(), "anka", "geheim"));
+
+            new VoiceSubmission(store).submitToProject(
+                    "aufnahme.m4a", "audio/mp4", new byte[]{1}, "projekt-2", null);
+
+            Assert.isTrue("Projekt-ID gesendet", fake.lastBody.contains("projekt-2"));
+            Assert.isTrue("explizites Projektfeld", fake.lastBody.contains("name=\"projectId\""));
+            Assert.isTrue("kein erneutes Routing", !fake.lastBody.contains("name=\"routeProject\""));
+        } finally {
+            fake.stop();
+        }
+    }
 }

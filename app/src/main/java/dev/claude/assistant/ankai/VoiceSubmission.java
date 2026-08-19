@@ -18,6 +18,19 @@ public final class VoiceSubmission {
 
     public VoiceResult submit(String filename, String contentType, byte[] audio,
             VoiceProgressListener listener) throws IOException {
+        return submit(filename, contentType, audio, null, listener);
+    }
+
+    public VoiceResult submitToProject(String filename, String contentType, byte[] audio,
+            String projectId, VoiceProgressListener listener) throws IOException {
+        if (projectId == null || projectId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Projekt-ID fehlt");
+        }
+        return submit(filename, contentType, audio, projectId.trim(), listener);
+    }
+
+    private VoiceResult submit(String filename, String contentType, byte[] audio,
+            String projectId, VoiceProgressListener listener) throws IOException {
         AnkaiConnection connection = store.load();
         if (connection == null) {
             throw new AnkaiAuthException("Bitte zuerst eine Ankai-Instanz verknuepfen");
@@ -25,7 +38,8 @@ public final class VoiceSubmission {
 
         AnkaiClient client = connection.newClient();
         VoiceRequest request = new VoiceRequest(filename, contentType, audio);
-        request.setDefaultProjectId(connection.defaultProjectId);
+        if (projectId == null) request.setDefaultProjectId(connection.defaultProjectId);
+        else request.setProjectId(projectId);
         try {
             return client.sendVoice(request, listener);
         } finally {

@@ -2,6 +2,7 @@ package dev.claude.assistant;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -25,6 +26,8 @@ import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.VoiceSubmission;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
+import dev.claude.assistant.ankai.AnkaiProject;
+import dev.claude.assistant.ankai.AnkaiRoutingException;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class AssistActivity extends Activity {
@@ -150,23 +153,57 @@ public class AssistActivity extends Activity {
     private void submitRecording(File file) {
         try {
             byte[] audio = Files.readAllBytes(file.toPath());
-            VoiceSubmission submission = new VoiceSubmission(
-                    EncryptedPrefsSecretStore.connectionStore(getApplicationContext()));
-            runOnUiThread(() -> responseView.setText(getString(R.string.status_uploading)));
-            dev.claude.assistant.ankai.VoiceResult result = submission.submit(
-                    file.getName(), "audio/mp4", audio,
-                    (percent, stage) -> runOnUiThread(() ->
-                            responseView.setText(VoiceUiFormatter.progress(percent, stage))));
-            runOnUiThread(() -> {
-                setVoiceBusy(false);
-                responseView.setText(VoiceUiFormatter.result(result));
-            });
+            submitAudio(file.getName(), audio, null);
         } catch (Throwable error) {
             runOnUiThread(() -> displayVoiceError(error));
         } finally {
             if (file != null) file.delete();
             recordingFile = null;
         }
+    }
+
+    private void submitAudio(String filename, byte[] audio, String projectId) {
+        try {
+            VoiceSubmission submission = new VoiceSubmission(
+                    EncryptedPrefsSecretStore.connectionStore(getApplicationContext()));
+            runOnUiThread(() -> responseView.setText(getString(R.string.status_uploading)));
+            dev.claude.assistant.ankai.VoiceResult result = projectId == null
+                    ? submission.submit(filename, "audio/mp4", audio, this::displayVoiceProgress)
+                    : submission.submitToProject(filename, "audio/mp4", audio, projectId,
+                            this::displayVoiceProgress);
+            runOnUiThread(() -> {
+                setVoiceBusy(false);
+                responseView.setText(VoiceUiFormatter.result(result));
+            });
+        } catch (AnkaiRoutingException error) {
+            runOnUiThread(() -> showProjectCandidates(error, filename, audio));
+        } catch (Throwable error) {
+            runOnUiThread(() -> displayVoiceError(error));
+        }
+    }
+
+    private void displayVoiceProgress(int percent, String stage) {
+        runOnUiThread(() -> responseView.setText(VoiceUiFormatter.progress(percent, stage)));
+    }
+
+    private void showProjectCandidates(AnkaiRoutingException error, String filename, byte[] audio) {
+        if (error.candidates.isEmpty()) {
+            displayVoiceError(error);
+            return;
+        }
+        setVoiceBusy(false);
+        String[] labels = new String[error.candidates.size()];
+        for (int i = 0; i < labels.length; i++) labels[i] = error.candidates.get(i).name;
+        new AlertDialog.Builder(this)
+                .setTitle(error.getMessage())
+                .setItems(labels, (dialog, which) -> {
+                    AnkaiProject selected = error.candidates.get(which);
+                    setVoiceBusy(true);
+                    voiceExecutor.execute(() -> submitAudio(filename, audio, selected.id));
+                })
+                .setNegativeButton(android.R.string.cancel, (dialog, which) -> displayVoiceError(error))
+                .setOnCancelListener(dialog -> displayVoiceError(error))
+                .show();
     }
 
     private void displayVoiceError(Throwable error) {
