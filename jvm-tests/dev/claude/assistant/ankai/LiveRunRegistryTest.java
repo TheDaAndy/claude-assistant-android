@@ -53,6 +53,20 @@ public final class LiveRunRegistryTest {
         Assert.eq("run-1", reconnected.runId());
     }
 
+    public void testSnapshotContainsParallelRunsWithoutExposingRegistryMap() {
+        LiveRunRegistry registry = new LiveRunRegistry();
+        registry.start("session-1", "run-1");
+        registry.start("session-2", "run-2");
+
+        java.util.List<LiveRunState> snapshot = registry.snapshot();
+
+        Assert.eq(2, snapshot.size());
+        Assert.isTrue("Erster Lauf fehlt", snapshot.contains(registry.get("session-1")));
+        Assert.isTrue("Zweiter Lauf fehlt", snapshot.contains(registry.get("session-2")));
+        snapshot.clear();
+        Assert.eq(2, registry.size());
+    }
+
     public void testSessionIdIsRequired() {
         try {
             new LiveRunRegistry().start(" ", "run-1");

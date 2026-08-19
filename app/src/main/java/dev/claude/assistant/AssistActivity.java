@@ -174,6 +174,7 @@ public class AssistActivity extends Activity {
                     ? submission.submit(filename, "audio/mp4", audio, this::displayVoiceProgress)
                     : submission.submitToProject(filename, "audio/mp4", audio, projectId,
                             this::displayVoiceProgress);
+            startLiveRunService();
             runOnUiThread(() -> {
                 setVoiceBusy(false);
                 responseView.setText(VoiceUiFormatter.result(result));
@@ -182,6 +183,15 @@ public class AssistActivity extends Activity {
             runOnUiThread(() -> showProjectCandidates(error, filename, audio));
         } catch (Throwable error) {
             runOnUiThread(() -> displayVoiceError(error));
+        }
+    }
+
+    private void startLiveRunService() {
+        Intent service = new Intent(getApplicationContext(), AssistantService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getApplicationContext().startForegroundService(service);
+        } else {
+            getApplicationContext().startService(service);
         }
     }
 

@@ -1,5 +1,7 @@
 package dev.claude.assistant.ankai;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -24,6 +26,11 @@ public final class LiveRunRegistry {
 
     public int size() {
         return runs.size();
+    }
+
+    /** Stabile Momentaufnahme fuer parallele Hintergrund-Reconnects. */
+    public List<LiveRunState> snapshot() {
+        return new ArrayList<>(runs.values());
     }
 
     /** Entfernt nur abgeschlossene Laeufe; aktive Hintergrundarbeit bleibt erhalten. */
