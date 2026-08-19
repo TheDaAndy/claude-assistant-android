@@ -24,5 +24,6 @@ java -cp "$OUT" TestRunner \
   dev.claude.assistant.ankai.LiveRunCoordinatorTest \
   dev.claude.assistant.ankai.LiveRunReconnectLoopTest \
   dev.claude.assistant.ankai.ActiveRunStoreTest \
+  dev.claude.assistant.ankai.PlaybackSettingsTest \
   dev.claude.assistant.ankai.AnkaiConnectionStoreTest \
   dev.claude.assistant.ankai.ConnectionPresenterTest

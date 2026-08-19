@@ -11,6 +11,7 @@ import java.security.GeneralSecurityException;
 
 import dev.claude.assistant.ankai.AnkaiConnectionStore;
 import dev.claude.assistant.ankai.ActiveRunStore;
+import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.ankai.SecretStore;
 
 /**
@@ -49,6 +50,11 @@ public final class EncryptedPrefsSecretStore implements SecretStore {
     /** Prozessfeste Registry-Grundlage fuer aktive /live-Sessions. */
     public static ActiveRunStore activeRunStore(Context context) {
         return new ActiveRunStore(new EncryptedPrefsSecretStore(context));
+    }
+
+    /** Persistente Einstellungen fuer die automatische Sprachausgabe. */
+    public static PlaybackSettings playbackSettings(Context context) {
+        return new PlaybackSettings(new EncryptedPrefsSecretStore(context));
     }
 
     @Override

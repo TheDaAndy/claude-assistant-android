@@ -24,6 +24,8 @@
     <string name="ankai_disconnect">Verbindung trennen</string>
     <string name="ankai_default_project">Standardprojekt</string>
     <string name="ankai_no_default_project">Kein Standardprojekt</string>
+    <string name="playback_heading">Sprachausgabe</string>
+    <string name="playback_autoplay">Neue Antworten automatisch vorlesen</string>
     <string name="floating_widget_ready">Assistent öffnen</string>
     <string name="floating_widget_run_active">Assistent öffnen, Ankaï verarbeitet eine Anfrage</string>
     <string name="floating_widget_run_done">Assistent öffnen, Ankaï-Antwort ist fertig</string>

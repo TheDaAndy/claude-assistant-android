@@ -8,6 +8,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.ConnectionPresenter;
 import dev.claude.assistant.ankai.ConnectionUiState;
+import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class MainActivity extends Activity {
@@ -32,6 +34,7 @@ public class MainActivity extends Activity {
     private TextView connectionStatus;
     private TextView connectionError;
     private ProgressBar connectionProgress;
+    private Switch autoplaySwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +42,10 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         bindViews();
         presenter = new ConnectionPresenter(EncryptedPrefsSecretStore.connectionStore(this));
+        PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
+        autoplaySwitch.setChecked(playbackSettings.isAutoplayEnabled());
+        autoplaySwitch.setOnCheckedChangeListener((button, enabled) ->
+                playbackSettings.setAutoplayEnabled(enabled));
 
         connectButton.setOnClickListener(view -> connect());
         disconnectButton.setOnClickListener(view -> runNetwork(presenter::disconnect));
@@ -66,6 +73,7 @@ public class MainActivity extends Activity {
         connectionStatus = findViewById(R.id.ankai_connection_status);
         connectionError = findViewById(R.id.ankai_connection_error);
         connectionProgress = findViewById(R.id.ankai_connection_progress);
+        autoplaySwitch = findViewById(R.id.ankai_autoplay);
     }
 
     private void connect() {
