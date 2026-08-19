@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
 
-import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +18,7 @@ import dev.claude.assistant.ankai.AnkaiClient;
 import dev.claude.assistant.ankai.AnkaiConnection;
 import dev.claude.assistant.ankai.AnkaiConnectionStore;
 import dev.claude.assistant.ankai.LiveRunCoordinator;
+import dev.claude.assistant.ankai.LiveRunReconnectLoop;
 import dev.claude.assistant.ankai.LiveRunState;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
@@ -56,10 +56,17 @@ public class AssistantService extends Service {
                            LiveRunCoordinator coordinator, LiveRunState run) {
         AnkaiClient client = connection.newClient();
         try {
-            coordinator.reconnect(run.sessionId(), client::streamLiveRun);
+            LiveRunReconnectLoop loop = new LiveRunReconnectLoop(coordinator, delay -> {
+                try {
+                    Thread.sleep(delay);
+                    return true;
+                } catch (InterruptedException stopped) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            });
+            loop.run(run.sessionId(), client::streamLiveRun);
             connections.saveSessionCookie(client.sessionCookie());
-        } catch (IOException ignored) {
-            // Persistierter Lauf bleibt fuer den naechsten Service-Start reconnectbar.
         } finally {
             reconnectingSessions.remove(run.sessionId());
         }
