@@ -4,6 +4,10 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
 ## [Unreleased]
 
+### Behoben
+- Die Assistant- und Launcher-Vector-Drawables verwenden gueltige Android-`path`-Elemente,
+  sodass AAPT die Debug-APK wieder erfolgreich erzeugen kann.
+
 ### Hinzugefuegt
 - Netzwerkschicht fuer die Anbindung an eine Ankai-Instanz (`dev.claude.assistant.ankai`):
   `AnkaiEndpoint` (URL-Normalisierung), `AnkaiClient` (Verbindungspruefung, Projektliste,
