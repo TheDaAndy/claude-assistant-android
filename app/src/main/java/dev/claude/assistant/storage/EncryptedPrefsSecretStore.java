@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 
 import dev.claude.assistant.ankai.AnkaiConnectionStore;
+import dev.claude.assistant.ankai.ActiveRunStore;
 import dev.claude.assistant.ankai.SecretStore;
 
 /**
@@ -43,6 +44,11 @@ public final class EncryptedPrefsSecretStore implements SecretStore {
     /** Bequemer Einstieg: fertiger Store fuer die App. */
     public static AnkaiConnectionStore connectionStore(Context context) {
         return new AnkaiConnectionStore(new EncryptedPrefsSecretStore(context));
+    }
+
+    /** Prozessfeste Registry-Grundlage fuer aktive /live-Sessions. */
+    public static ActiveRunStore activeRunStore(Context context) {
+        return new ActiveRunStore(new EncryptedPrefsSecretStore(context));
     }
 
     @Override

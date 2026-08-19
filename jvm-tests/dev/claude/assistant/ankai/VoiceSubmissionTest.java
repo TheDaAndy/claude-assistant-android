@@ -59,6 +59,28 @@ public final class VoiceSubmissionTest {
         }
     }
 
+    public void testBestaetigterVoiceLaufWirdVorLiveReconnectPersistiert() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/voice", 200, "application/x-ndjson",
+                    "{\"type\":\"done\",\"sessionId\":\"session-live\",\"runId\":\"run-live\"}\n");
+            AnkaiConnectionStoreTest.MemoryStore secrets = new AnkaiConnectionStoreTest.MemoryStore();
+            AnkaiConnectionStore connectionStore = new AnkaiConnectionStore(secrets);
+            connectionStore.save(new AnkaiConnection(fake.baseUrl(), "anka", "geheim"));
+            ActiveRunStore activeRuns = new ActiveRunStore(secrets);
+            LiveRunCoordinator coordinator = new LiveRunCoordinator(activeRuns);
+
+            new VoiceSubmission(connectionStore, coordinator)
+                    .submit("aufnahme.m4a", "audio/mp4", new byte[]{1}, null);
+
+            Assert.eq(1, activeRuns.load().size());
+            Assert.eq("session-live", activeRuns.load().get(0).sessionId());
+            Assert.eq("run-live", coordinator.registry().get("session-live").runId());
+        } finally {
+            fake.stop();
+        }
+    }
+
     public void testRoutingFehlerBleibtFuerKandidatenauswahlErhalten() throws Exception {
         FakeAnkai fake = new FakeAnkai();
         try {

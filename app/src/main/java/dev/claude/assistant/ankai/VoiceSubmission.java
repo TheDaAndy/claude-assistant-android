@@ -11,9 +11,16 @@ import java.io.IOException;
  */
 public final class VoiceSubmission {
     private final AnkaiConnectionStore store;
+    private final LiveRunCoordinator liveRuns;
 
     public VoiceSubmission(AnkaiConnectionStore store) {
+        this(store, null);
+    }
+
+    public VoiceSubmission(AnkaiConnectionStore store, LiveRunCoordinator liveRuns) {
+        if (store == null) throw new IllegalArgumentException("Verbindungsablage fehlt");
         this.store = store;
+        this.liveRuns = liveRuns;
     }
 
     public VoiceResult submit(String filename, String contentType, byte[] audio,
@@ -41,7 +48,9 @@ public final class VoiceSubmission {
         if (projectId == null) request.setDefaultProjectId(connection.defaultProjectId);
         else request.setProjectId(projectId);
         try {
-            return client.sendVoice(request, listener);
+            VoiceResult result = client.sendVoice(request, listener);
+            if (liveRuns != null) liveRuns.track(result);
+            return result;
         } finally {
             store.saveSessionCookie(client.sessionCookie());
         }
