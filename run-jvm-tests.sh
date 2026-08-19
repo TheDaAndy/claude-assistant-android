@@ -4,6 +4,7 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+"$ROOT/scripts/verify-no-termux-runtime.sh"
 OUT="$ROOT/build/jvm-tests"
 rm -rf "$OUT"
 mkdir -p "$OUT"
