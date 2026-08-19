@@ -6,6 +6,7 @@ import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
+import android.speech.tts.Voice;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,10 +25,12 @@ final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInit
     private final List<String> pending = new ArrayList<>();
     private boolean ready;
     private boolean closed;
+    private final String voiceName;
 
     AndroidSpeechPlayback(Context context, PlaybackSettings settings) {
         Context applicationContext = context.getApplicationContext();
         String enginePackage = settings == null ? null : settings.getEnginePackage();
+        voiceName = settings == null ? null : settings.getVoiceName();
         tts = enginePackage == null
                 ? new TextToSpeech(applicationContext, this)
                 : new TextToSpeech(applicationContext, this, enginePackage);
@@ -64,6 +67,14 @@ final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInit
             return;
         }
         tts.setLanguage(Locale.GERMAN);
+        if (voiceName != null && tts.getVoices() != null) {
+            for (Voice voice : tts.getVoices()) {
+                if (voiceName.equals(voice.getName())) {
+                    tts.setVoice(voice);
+                    break;
+                }
+            }
+        }
         ready = true;
         for (String text : pending) enqueue(text);
         pending.clear();

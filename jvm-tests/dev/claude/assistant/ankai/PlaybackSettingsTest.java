@@ -60,4 +60,38 @@ public final class PlaybackSettingsTest {
         Assert.isTrue("ungueltiger Paketname",
                 new PlaybackSettings(store).getEnginePackage() == null);
     }
+
+    public void testStimmeKannGespeichertUndZurueckgesetztWerden() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setVoiceName("de-de-x-deb-local");
+        Assert.eq("de-de-x-deb-local", new PlaybackSettings(store).getVoiceName());
+
+        settings.setVoiceName(null);
+        Assert.isTrue("Engine-Standard nach Reset",
+                new PlaybackSettings(store).getVoiceName() == null);
+    }
+
+    public void testEnginewechselSetztStimmeZurueck() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+        settings.setEnginePackage("com.example.first.tts");
+        settings.setVoiceName("first-voice");
+
+        settings.setEnginePackage("com.example.second.tts");
+
+        Assert.isTrue("Stimme gehoert nicht zur neuen Engine", settings.getVoiceName() == null);
+    }
+
+    public void testUngueltigerStimmennameWirdNichtVerwendet() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setVoiceName("   ");
+        Assert.isTrue("Leerwert", settings.getVoiceName() == null);
+
+        store.put("playback.voice_name", "voice\nname");
+        Assert.isTrue("Steuerzeichen", new PlaybackSettings(store).getVoiceName() == null);
+    }
 }

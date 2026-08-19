@@ -28,6 +28,10 @@
     <string name="playback_autoplay">Neue Antworten automatisch vorlesen</string>
     <string name="playback_engine">TTS-Engine</string>
     <string name="playback_engine_system">Systemstandard</string>
+    <string name="playback_voice">Stimme</string>
+    <string name="playback_voice_default">Engine-Standard</string>
+    <string name="playback_voice_network">Netzwerk</string>
+    <string name="playback_voice_offline">offline verfügbar</string>
     <string name="playback_engine_hint">Installierte Engines verwalten Datenschutz, Offline-Stimmen und mögliche Kosten selbst.</string>
     <string name="floating_widget_ready">Assistent öffnen</string>
     <string name="floating_widget_run_active">Assistent öffnen, Ankaï verarbeitet eine Anfrage</string>

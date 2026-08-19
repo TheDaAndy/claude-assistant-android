@@ -3,6 +3,7 @@ package dev.claude.assistant;
 import android.app.Activity;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -38,8 +39,10 @@ public class MainActivity extends Activity {
     private ProgressBar connectionProgress;
     private Switch autoplaySwitch;
     private Spinner engineSpinner;
+    private Spinner voiceSpinner;
     private PlaybackSettings playbackSettings;
     private TextToSpeech ttsProbe;
+    private int ttsProbeGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,16 +84,29 @@ public class MainActivity extends Activity {
         connectionProgress = findViewById(R.id.ankai_connection_progress);
         autoplaySwitch = findViewById(R.id.ankai_autoplay);
         engineSpinner = findViewById(R.id.playback_engine);
+        voiceSpinner = findViewById(R.id.playback_voice);
     }
 
     private void loadSpeechEngines() {
         engineSpinner.setEnabled(false);
-        ttsProbe = new TextToSpeech(getApplicationContext(), status ->
-                runOnUiThread(() -> renderSpeechEngines(status)));
+        voiceSpinner.setEnabled(false);
+        if (ttsProbe != null) ttsProbe.shutdown();
+        int generation = ++ttsProbeGeneration;
+        String enginePackage = playbackSettings.getEnginePackage();
+        ttsProbe = enginePackage == null
+                ? new TextToSpeech(getApplicationContext(), status ->
+                        runOnUiThread(() -> renderSpeechEngines(status, generation)))
+                : new TextToSpeech(getApplicationContext(), status ->
+                        runOnUiThread(() -> renderSpeechEngines(status, generation)), enginePackage);
     }
 
-    private void renderSpeechEngines(int status) {
-        if (isFinishing() || isDestroyed()) return;
+    private void renderSpeechEngines(int status, int generation) {
+        if (generation != ttsProbeGeneration || isFinishing() || isDestroyed()) return;
+        if (status != TextToSpeech.SUCCESS && playbackSettings.getEnginePackage() != null) {
+            playbackSettings.setEnginePackage(null);
+            loadSpeechEngines();
+            return;
+        }
         List<EngineChoice> choices = new ArrayList<>();
         choices.add(new EngineChoice(null, getString(R.string.playback_engine_system)));
         if (status == TextToSpeech.SUCCESS && ttsProbe != null) {
@@ -119,9 +135,52 @@ public class MainActivity extends Activity {
         engineSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
             Object selected = engineSpinner.getItemAtPosition(position);
             if (selected instanceof EngineChoice) {
-                playbackSettings.setEnginePackage(((EngineChoice) selected).packageName);
+                String packageName = ((EngineChoice) selected).packageName;
+                String previous = playbackSettings.getEnginePackage();
+                if (previous == null ? packageName != null : !previous.equals(packageName)) {
+                    playbackSettings.setEnginePackage(packageName);
+                    loadSpeechEngines();
+                }
             }
         }));
+        renderVoices(status);
+    }
+
+    private void renderVoices(int status) {
+        List<VoiceChoice> choices = new ArrayList<>();
+        choices.add(new VoiceChoice(null, getString(R.string.playback_voice_default)));
+        if (status == TextToSpeech.SUCCESS && ttsProbe != null && ttsProbe.getVoices() != null) {
+            List<Voice> voices = new ArrayList<>(ttsProbe.getVoices());
+            voices.sort(Comparator.comparing(this::voiceLabel, String.CASE_INSENSITIVE_ORDER));
+            for (Voice voice : voices) choices.add(new VoiceChoice(voice.getName(), voiceLabel(voice)));
+        }
+        String selectedName = playbackSettings.getVoiceName();
+        int selectedPosition = 0;
+        for (int index = 1; index < choices.size(); index++) {
+            if (choices.get(index).nameEquals(selectedName)) selectedPosition = index;
+        }
+        if (selectedName != null && selectedPosition == 0 && status == TextToSpeech.SUCCESS) {
+            playbackSettings.setVoiceName(null);
+        }
+        ArrayAdapter<VoiceChoice> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        voiceSpinner.setAdapter(adapter);
+        voiceSpinner.setSelection(selectedPosition, false);
+        voiceSpinner.setEnabled(status == TextToSpeech.SUCCESS);
+        voiceSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
+            Object selected = voiceSpinner.getItemAtPosition(position);
+            if (selected instanceof VoiceChoice) {
+                playbackSettings.setVoiceName(((VoiceChoice) selected).name);
+            }
+        }));
+    }
+
+    private String voiceLabel(Voice voice) {
+        String availability = voice.isNetworkConnectionRequired()
+                ? getString(R.string.playback_voice_network)
+                : getString(R.string.playback_voice_offline);
+        return voice.getName() + " · " + voice.getLocale().toLanguageTag() + " · " + availability;
     }
 
     private String engineLabel(TextToSpeech.EngineInfo engine) {
@@ -230,6 +289,22 @@ public class MainActivity extends Activity {
 
         boolean packageEquals(String other) {
             return packageName == null ? other == null : packageName.equals(other);
+        }
+
+        @Override public String toString() { return label; }
+    }
+
+    private static final class VoiceChoice {
+        final String name;
+        final String label;
+
+        VoiceChoice(String name, String label) {
+            this.name = name;
+            this.label = label;
+        }
+
+        boolean nameEquals(String other) {
+            return name == null ? other == null : name.equals(other);
         }
 
         @Override public String toString() { return label; }
