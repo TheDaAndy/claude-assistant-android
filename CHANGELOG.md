@@ -9,6 +9,8 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
   sodass AAPT die Debug-APK wieder erfolgreich erzeugen kann.
 
 ### Hinzugefuegt
+- Reproduzierbarer Headless-Emulator-Smoke-Test, der die Debug-APK baut, auf einem
+  konfigurierbaren AVD installiert, `MainActivity` startet und Prozess-, Activity- und Crashstatus prueft.
 - Ausgewaehlte Android-TTS-Stimmen lassen sich direkt mit einem kurzen Beispielsatz und demselben
   Audiofokus-Verhalten wie echte Antworten vergleichen.
 - Netzwerkschicht fuer die Anbindung an eine Ankai-Instanz (`dev.claude.assistant.ankai`):
