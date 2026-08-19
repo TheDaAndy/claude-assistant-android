@@ -13,6 +13,7 @@ import java.util.Locale;
 
 import dev.claude.assistant.ankai.SpeechPlayback;
 import dev.claude.assistant.ankai.AudioFocusSession;
+import dev.claude.assistant.ankai.PlaybackSettings;
 
 /** Prozesslokaler Android-TTS-Kanal mit sofortigem stop() und sauberem Shutdown. */
 final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInitListener {
@@ -24,9 +25,12 @@ final class AndroidSpeechPlayback implements SpeechPlayback, TextToSpeech.OnInit
     private boolean ready;
     private boolean closed;
 
-    AndroidSpeechPlayback(Context context) {
+    AndroidSpeechPlayback(Context context, PlaybackSettings settings) {
         Context applicationContext = context.getApplicationContext();
-        tts = new TextToSpeech(applicationContext, this);
+        String enginePackage = settings == null ? null : settings.getEnginePackage();
+        tts = enginePackage == null
+                ? new TextToSpeech(applicationContext, this)
+                : new TextToSpeech(applicationContext, this, enginePackage);
         audioManager = (AudioManager) applicationContext.getSystemService(Context.AUDIO_SERVICE);
         AudioAttributes attributes = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ASSISTANT)

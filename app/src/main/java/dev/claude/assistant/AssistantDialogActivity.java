@@ -19,6 +19,7 @@ import dev.claude.assistant.ankai.LiveRunSnapshot;
 import dev.claude.assistant.ankai.LiveRunSpeechController;
 import dev.claude.assistant.ankai.LiveRunState;
 import dev.claude.assistant.ankai.LiveRunSubscription;
+import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class AssistantDialogActivity extends Activity {
@@ -57,8 +58,9 @@ public class AssistantDialogActivity extends Activity {
         if (observedRun == null) return;
         observedRun.attachOverlay();
         liveRunSubscription = observedRun.observe(this::displayLiveRun);
-        if (EncryptedPrefsSecretStore.playbackSettings(this).isAutoplayEnabled()) {
-            speechPlayback = new AndroidSpeechPlayback(getApplicationContext());
+        PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
+        if (playbackSettings.isAutoplayEnabled()) {
+            speechPlayback = new AndroidSpeechPlayback(getApplicationContext(), playbackSettings);
             speechController = new LiveRunSpeechController(observedRun, speechPlayback);
         }
     }

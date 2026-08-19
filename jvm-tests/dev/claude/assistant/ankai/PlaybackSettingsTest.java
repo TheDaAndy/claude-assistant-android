@@ -28,4 +28,36 @@ public final class PlaybackSettingsTest {
         Assert.isTrue("ungueltiger Wert faellt sicher auf Standard zurueck",
                 new PlaybackSettings(store).isAutoplayEnabled());
     }
+
+    public void testSystemstandardIstDieVoreingestellteEngine() {
+        PlaybackSettings settings = new PlaybackSettings(
+                new AnkaiConnectionStoreTest.MemoryStore());
+
+        Assert.isTrue("keine feste Engine", settings.getEnginePackage() == null);
+    }
+
+    public void testEngineKannGespeichertUndAufSystemstandardZurueckgesetztWerden() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setEnginePackage("com.example.offline.tts");
+        Assert.eq("com.example.offline.tts",
+                new PlaybackSettings(store).getEnginePackage());
+
+        settings.setEnginePackage(null);
+        Assert.isTrue("Systemstandard nach Reset",
+                new PlaybackSettings(store).getEnginePackage() == null);
+    }
+
+    public void testLeereOderBeschaedigteEngineFaelltAufSystemstandardZurueck() {
+        AnkaiConnectionStoreTest.MemoryStore store = new AnkaiConnectionStoreTest.MemoryStore();
+        PlaybackSettings settings = new PlaybackSettings(store);
+
+        settings.setEnginePackage("   ");
+        Assert.isTrue("Leerwert", settings.getEnginePackage() == null);
+
+        store.put("playback.engine_package", "bad package name");
+        Assert.isTrue("ungueltiger Paketname",
+                new PlaybackSettings(store).getEnginePackage() == null);
+    }
 }

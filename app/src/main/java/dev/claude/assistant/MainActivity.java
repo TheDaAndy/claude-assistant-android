@@ -2,6 +2,7 @@ package dev.claude.assistant;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -12,6 +13,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +37,9 @@ public class MainActivity extends Activity {
     private TextView connectionError;
     private ProgressBar connectionProgress;
     private Switch autoplaySwitch;
+    private Spinner engineSpinner;
+    private PlaybackSettings playbackSettings;
+    private TextToSpeech ttsProbe;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +47,11 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         bindViews();
         presenter = new ConnectionPresenter(EncryptedPrefsSecretStore.connectionStore(this));
-        PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
+        playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
         autoplaySwitch.setChecked(playbackSettings.isAutoplayEnabled());
         autoplaySwitch.setOnCheckedChangeListener((button, enabled) ->
                 playbackSettings.setAutoplayEnabled(enabled));
+        loadSpeechEngines();
 
         connectButton.setOnClickListener(view -> connect());
         disconnectButton.setOnClickListener(view -> runNetwork(presenter::disconnect));
@@ -74,6 +80,53 @@ public class MainActivity extends Activity {
         connectionError = findViewById(R.id.ankai_connection_error);
         connectionProgress = findViewById(R.id.ankai_connection_progress);
         autoplaySwitch = findViewById(R.id.ankai_autoplay);
+        engineSpinner = findViewById(R.id.playback_engine);
+    }
+
+    private void loadSpeechEngines() {
+        engineSpinner.setEnabled(false);
+        ttsProbe = new TextToSpeech(getApplicationContext(), status ->
+                runOnUiThread(() -> renderSpeechEngines(status)));
+    }
+
+    private void renderSpeechEngines(int status) {
+        if (isFinishing() || isDestroyed()) return;
+        List<EngineChoice> choices = new ArrayList<>();
+        choices.add(new EngineChoice(null, getString(R.string.playback_engine_system)));
+        if (status == TextToSpeech.SUCCESS && ttsProbe != null) {
+            List<TextToSpeech.EngineInfo> engines = new ArrayList<>(ttsProbe.getEngines());
+            engines.sort(Comparator.comparing(this::engineLabel,
+                    String.CASE_INSENSITIVE_ORDER));
+            for (TextToSpeech.EngineInfo engine : engines) {
+                choices.add(new EngineChoice(engine.name, engineLabel(engine)));
+            }
+        }
+
+        String selectedPackage = playbackSettings.getEnginePackage();
+        int selectedPosition = 0;
+        for (int index = 1; index < choices.size(); index++) {
+            if (choices.get(index).packageEquals(selectedPackage)) selectedPosition = index;
+        }
+        if (selectedPackage != null && selectedPosition == 0 && status == TextToSpeech.SUCCESS) {
+            playbackSettings.setEnginePackage(null);
+        }
+        ArrayAdapter<EngineChoice> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        engineSpinner.setAdapter(adapter);
+        engineSpinner.setSelection(selectedPosition, false);
+        engineSpinner.setEnabled(status == TextToSpeech.SUCCESS);
+        engineSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
+            Object selected = engineSpinner.getItemAtPosition(position);
+            if (selected instanceof EngineChoice) {
+                playbackSettings.setEnginePackage(((EngineChoice) selected).packageName);
+            }
+        }));
+    }
+
+    private String engineLabel(TextToSpeech.EngineInfo engine) {
+        return engine.label == null || engine.label.toString().trim().isEmpty()
+                ? engine.name : engine.label.toString();
     }
 
     private void connect() {
@@ -139,6 +192,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         networkExecutor.shutdownNow();
+        if (ttsProbe != null) ttsProbe.shutdown();
         super.onDestroy();
     }
 
@@ -163,5 +217,21 @@ public class MainActivity extends Activity {
         public String toString() {
             return label;
         }
+    }
+
+    private static final class EngineChoice {
+        final String packageName;
+        final String label;
+
+        EngineChoice(String packageName, String label) {
+            this.packageName = packageName;
+            this.label = label;
+        }
+
+        boolean packageEquals(String other) {
+            return packageName == null ? other == null : packageName.equals(other);
+        }
+
+        @Override public String toString() { return label; }
     }
 }
