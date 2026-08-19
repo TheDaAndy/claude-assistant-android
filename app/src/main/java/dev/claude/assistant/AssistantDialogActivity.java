@@ -16,6 +16,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 
 import dev.claude.assistant.ankai.LiveRunSnapshot;
+import dev.claude.assistant.ankai.LiveRunSpeechController;
 import dev.claude.assistant.ankai.LiveRunState;
 import dev.claude.assistant.ankai.LiveRunSubscription;
 
@@ -30,6 +31,8 @@ public class AssistantDialogActivity extends Activity {
     private BroadcastReceiver responseReceiver;
     private LiveRunState observedRun;
     private LiveRunSubscription liveRunSubscription;
+    private LiveRunSpeechController speechController;
+    private AndroidSpeechPlayback speechPlayback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +56,8 @@ public class AssistantDialogActivity extends Activity {
         if (observedRun == null) return;
         observedRun.attachOverlay();
         liveRunSubscription = observedRun.observe(this::displayLiveRun);
+        speechPlayback = new AndroidSpeechPlayback(getApplicationContext());
+        speechController = new LiveRunSpeechController(observedRun, speechPlayback);
     }
 
     private void displayLiveRun(LiveRunSnapshot snapshot) {
@@ -134,6 +139,8 @@ public class AssistantDialogActivity extends Activity {
     protected void onDestroy() {
         if (liveRunSubscription != null) liveRunSubscription.close();
         if (observedRun != null) observedRun.closeOverlay();
+        if (speechController != null) speechController.close();
+        if (speechPlayback != null) speechPlayback.shutdown();
         if (responseReceiver != null) {
             unregisterReceiver(responseReceiver);
         }

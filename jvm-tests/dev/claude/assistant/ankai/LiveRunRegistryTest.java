@@ -28,6 +28,44 @@ public final class LiveRunRegistryTest {
         Assert.isTrue("Sprachsperre bleibt fuer diesen Lauf bestehen", !run.maySpeak());
     }
 
+    public void testClosingOverlayImmediatelyStopsRegisteredPlayback() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        new LiveRunSpeechController(run, playback);
+        run.accept(new LiveRunEvent("assistant", "Erster Teil"));
+
+        run.closeOverlay();
+        run.accept(new LiveRunEvent("assistant", "Darf nicht sprechen"));
+
+        Assert.eq(1, playback.spoken.size());
+        Assert.eq("Erster Teil", playback.spoken.get(0));
+        Assert.eq(1, playback.stopCount);
+    }
+
+    public void testSpeechControllerQueuesOnlyNewAnswerParts() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        LiveRunSpeechController controller = new LiveRunSpeechController(run, playback);
+
+        run.accept(new LiveRunEvent("assistant", "Eins"));
+        run.accept(new LiveRunEvent("assistant", "Zwei"));
+
+        Assert.eq(2, playback.spoken.size());
+        Assert.eq("Eins", playback.spoken.get(0));
+        Assert.eq("Zwei", playback.spoken.get(1));
+        controller.close();
+    }
+
+    public void testLatePlaybackRegistrationOnClosedRunStopsImmediately() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        run.closeOverlay();
+        RecordingPlayback playback = new RecordingPlayback();
+
+        new LiveRunSpeechController(run, playback);
+
+        Assert.eq(1, playback.stopCount);
+    }
+
     public void testParallelRunsKeepIndependentState() {
         LiveRunRegistry registry = new LiveRunRegistry();
         LiveRunState first = registry.start("session-1", "run-1");
@@ -139,5 +177,13 @@ public final class LiveRunRegistryTest {
 
         Assert.eq(0, observed.size());
         Assert.eq(1, registry.size());
+    }
+
+    private static final class RecordingPlayback implements SpeechPlayback {
+        final java.util.List<String> spoken = new java.util.ArrayList<>();
+        int stopCount;
+
+        @Override public void speak(String text) { spoken.add(text); }
+        @Override public void stop() { stopCount++; }
     }
 }

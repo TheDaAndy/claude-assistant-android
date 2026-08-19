@@ -20,6 +20,7 @@ public final class LiveRunState implements LiveRunListener {
     private boolean overlayAttached;
     private boolean speechAllowed = true;
     private boolean done;
+    private SpeechPlayback speechPlayback;
 
     LiveRunState(String sessionId, String runId) {
         this.sessionId = sessionId;
@@ -55,9 +56,32 @@ public final class LiveRunState implements LiveRunListener {
     }
 
     /** Meldet die UI ab und sperrt Autoplay fuer die gesamte Restlaufzeit. */
-    public synchronized void closeOverlay() {
-        overlayAttached = false;
-        speechAllowed = false;
+    public void closeOverlay() {
+        SpeechPlayback playback;
+        synchronized (this) {
+            overlayAttached = false;
+            speechAllowed = false;
+            playback = speechPlayback;
+        }
+        if (playback != null) playback.stop();
+    }
+
+    public void setSpeechPlayback(SpeechPlayback playback) {
+        if (playback == null) throw new IllegalArgumentException("Wiedergabe fehlt");
+        boolean stopImmediately;
+        synchronized (this) {
+            speechPlayback = playback;
+            stopImmediately = !speechAllowed;
+        }
+        if (stopImmediately) playback.stop();
+    }
+
+    public synchronized void clearSpeechPlayback(SpeechPlayback playback) {
+        if (speechPlayback == playback) speechPlayback = null;
+    }
+
+    synchronized void speakIfAllowed(SpeechPlayback playback, String text) {
+        if (speechAllowed && speechPlayback == playback) playback.speak(text);
     }
 
     /**
