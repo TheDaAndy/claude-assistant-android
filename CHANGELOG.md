@@ -34,3 +34,6 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 - MainActivity-Verknuepfungsoberflaeche fuer Instanz-URL, Login, Verbindungsstatus,
   Default-Projektauswahl und Trennen; alle Netzwerkoperationen laufen ausserhalb des UI-Threads.
 - Nicht unterstuetzte SVG-Kreisattribute in den Android-VectorDrawables durch kompatible Pfade ersetzt.
+- Gemeinsamer Android-freier `VoiceSubmission`-Einstieg fuer Assistant und Overlay: laedt die sichere
+  Verknuepfung, wendet das Default-Projekt an, reicht Fortschritt und Routingfehler weiter und speichert
+  erneuerte Sessioncookies nach der Sprachuebergabe.
