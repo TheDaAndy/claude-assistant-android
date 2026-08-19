@@ -31,3 +31,6 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 - Android-freie Zustandslogik fuer die Verknuepfungs-UI (`ConnectionPresenter`/`ConnectionUiState`):
   validiert Zugangsdaten, speichert erst nach erfolgreichem Login samt Projektabruf, verwaltet das
   Default-Projekt und trennt lokal auch bei einem nicht erreichbaren Server.
+- MainActivity-Verknuepfungsoberflaeche fuer Instanz-URL, Login, Verbindungsstatus,
+  Default-Projektauswahl und Trennen; alle Netzwerkoperationen laufen ausserhalb des UI-Threads.
+- Nicht unterstuetzte SVG-Kreisattribute in den Android-VectorDrawables durch kompatible Pfade ersetzt.

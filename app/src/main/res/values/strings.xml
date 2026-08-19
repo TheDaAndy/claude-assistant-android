@@ -9,4 +9,15 @@
     <string name="status_ready">Wie kann ich dir helfen?</string>
     <string name="error_no_response">Fehler: Keine Antwort</string>
     <string name="speech_cancelled">Spracheingabe abgebrochen. Du kannst auch tippen.</string>
+    <string name="setup_instructions">Willkommen! Lege diese App als Standard-Assistent fest und starte sie per langem Druck auf Home oder über das Quick-Settings-Tile.</string>
+    <string name="ankai_connection_heading">Ankaï-Verknüpfung</string>
+    <string name="ankai_not_connected">Nicht verbunden</string>
+    <string name="ankai_connected_as">Verbunden als %1$s mit %2$s</string>
+    <string name="ankai_instance_url">Instanz-URL (https://…)</string>
+    <string name="ankai_username">Benutzername</string>
+    <string name="ankai_password">Passwort</string>
+    <string name="ankai_connect">Verbinden</string>
+    <string name="ankai_disconnect">Verbindung trennen</string>
+    <string name="ankai_default_project">Standardprojekt</string>
+    <string name="ankai_no_default_project">Kein Standardprojekt</string>
 </resources>
