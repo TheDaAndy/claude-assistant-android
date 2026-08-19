@@ -69,6 +69,51 @@ public class AnkaiClientTest {
         }
     }
 
+    public void testLiveRunStreamsAssistantAndDoneEvents() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/sessions/session-1/live", 200, "application/x-ndjson",
+                "{\"type\":\"assistant\",\"text\":\"Zwischenstand\"}\n"
+                    + "{\"type\":\"assistant\",\"text\":\"Fertige Antwort\"}\n"
+                    + "{\"type\":\"done\"}\n");
+            List<LiveRunEvent> events = new ArrayList<>();
+            boolean active = clientFor(fake).streamLiveRun("session-1", events::add);
+            Assert.isTrue("Live-Lauf muss erkannt werden", active);
+            Assert.eq(3, events.size());
+            Assert.eq("assistant", events.get(0).type);
+            Assert.eq("Zwischenstand", events.get(0).text);
+            Assert.eq("done", events.get(2).type);
+            Assert.isTrue("Live-Endpunkt muss aufgerufen werden",
+                fake.requestLog.contains("GET /api/sessions/session-1/live"));
+        } finally {
+            fake.stop();
+        }
+    }
+
+    public void testLiveRunReturnsInactiveWithoutFakeEvent() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/sessions/session-2/live", 200, "application/json", "{\"active\":false}");
+            List<LiveRunEvent> events = new ArrayList<>();
+            boolean active = clientFor(fake).streamLiveRun("session-2", events::add);
+            Assert.isTrue("beendeter Lauf darf nicht aktiv sein", !active);
+            Assert.eq(0, events.size());
+        } finally {
+            fake.stop();
+        }
+    }
+
+    public void testLiveRunRequiresSessionId() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            clientFor(fake).streamLiveRun("  ", event -> {});
+            Assert.fail("Leere Session-ID muss abgewiesen werden");
+        } catch (IllegalArgumentException expected) {
+        } finally {
+            fake.stop();
+        }
+    }
+
     public void testUnknownProjectRaisesRoutingErrorWithoutGuessing() throws Exception {
         FakeAnkai fake = new FakeAnkai();
         try {

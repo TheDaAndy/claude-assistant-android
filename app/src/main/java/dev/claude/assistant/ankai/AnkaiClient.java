@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -105,6 +106,52 @@ public final class AnkaiClient {
                 throw toError(error, "Ankai antwortete mit HTTP " + status);
             }
             return readVoiceStream(connection, listener);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    /**
+     * Verbindet sich mit dem Live-Stream eines sichtbaren Chatlaufs.
+     *
+     * @return true, wenn ein aktiver Stream geliefert wurde; false, wenn der Lauf bereits beendet ist.
+     */
+    public boolean streamLiveRun(String sessionId, LiveRunListener listener) throws IOException {
+        String value = sessionId == null ? "" : sessionId.trim();
+        if (value.isEmpty()) throw new IllegalArgumentException("Session-ID fehlt");
+        String encoded = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        HttpURLConnection connection = open("/api/sessions/" + encoded + "/live", "GET");
+        connection.setRequestProperty("Accept", "application/x-ndjson");
+        try {
+            int status = connection.getResponseCode();
+            captureCookie(connection);
+            if (status == 401 || status == 403) {
+                sessionCookie = null;
+                throw new AnkaiAuthException("Ankai-Verknuepfung ist abgelaufen");
+            }
+            if (status >= 400) {
+                Map<String, Object> error = parseOrNull(readBody(errorStream(connection)));
+                throw toError(error, "Ankai antwortete mit HTTP " + status);
+            }
+            String contentType = connection.getContentType();
+            if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+                Map<String, Object> payload = parseOrNull(readBody(connection.getInputStream()));
+                return payload == null || !Boolean.FALSE.equals(payload.get("active"));
+            }
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.trim().isEmpty()) continue;
+                    Map<String, Object> payload = parseOrNull(line);
+                    if (payload == null) continue;
+                    String type = AnkaiJson.string(payload, "type");
+                    if (type != null && listener != null) {
+                        listener.onEvent(new LiveRunEvent(type, AnkaiJson.string(payload, "text")));
+                    }
+                }
+            }
+            return true;
         } finally {
             connection.disconnect();
         }
