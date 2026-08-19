@@ -14,12 +14,16 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.LiveRunSnapshot;
 import dev.claude.assistant.ankai.LiveRunSpeechController;
 import dev.claude.assistant.ankai.LiveRunState;
 import dev.claude.assistant.ankai.LiveRunSubscription;
 import dev.claude.assistant.ankai.PlaybackSettings;
+import dev.claude.assistant.ankai.TextSubmission;
+import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class AssistantDialogActivity extends Activity {
@@ -35,6 +39,7 @@ public class AssistantDialogActivity extends Activity {
     private LiveRunSubscription liveRunSubscription;
     private LiveRunSpeechController speechController;
     private AndroidSpeechPlayback speechPlayback;
+    private final ExecutorService textExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,13 +52,20 @@ public class AssistantDialogActivity extends Activity {
         sendButton = findViewById(R.id.send_button);
 
         micButton.setOnClickListener(v -> startSpeechRecognition());
-        sendButton.setOnClickListener(v -> sendToClaudeCode());
+        sendButton.setOnClickListener(v -> sendText());
 
         setupResponseReceiver();
         observeLatestRun();
     }
 
     private void observeLatestRun() {
+        if (liveRunSubscription != null) liveRunSubscription.close();
+        if (observedRun != null) observedRun.closeOverlay();
+        if (speechController != null) speechController.close();
+        if (speechPlayback != null) speechPlayback.shutdown();
+        liveRunSubscription = null;
+        speechController = null;
+        speechPlayback = null;
         observedRun = LiveRunRuntime.coordinator(getApplicationContext()).registry().latest();
         if (observedRun == null) return;
         observedRun.attachOverlay();
@@ -109,13 +121,13 @@ public class AssistantDialogActivity extends Activity {
                 RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
                 inputField.setText(results.get(0));
-                sendToClaudeCode();
+                sendText();
             }
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void sendToClaudeCode() {
+    private void sendText() {
         String prompt = inputField.getText().toString().trim();
         if (prompt.isEmpty()) return;
 
@@ -123,7 +135,29 @@ public class AssistantDialogActivity extends Activity {
         micButton.setEnabled(false);
         sendButton.setEnabled(false);
 
-        TermuxBridge.executeClaudeCode(this, prompt);
+        inputField.setEnabled(false);
+        textExecutor.execute(() -> {
+            try {
+                new TextSubmission(EncryptedPrefsSecretStore.connectionStore(getApplicationContext()),
+                        LiveRunRuntime.coordinator(getApplicationContext())).submit(prompt);
+                Intent service = new Intent(getApplicationContext(), AssistantService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service);
+                else startService(service);
+                runOnUiThread(() -> {
+                    inputField.setEnabled(true);
+                    micButton.setEnabled(true);
+                    sendButton.setEnabled(true);
+                    observeLatestRun();
+                });
+            } catch (Throwable error) {
+                runOnUiThread(() -> {
+                    inputField.setEnabled(true);
+                    micButton.setEnabled(true);
+                    sendButton.setEnabled(true);
+                    responseView.setText(VoiceUiFormatter.error(error));
+                });
+            }
+        });
     }
 
     private void displayResponse(String response, int exitCode) {
@@ -149,6 +183,7 @@ public class AssistantDialogActivity extends Activity {
         if (responseReceiver != null) {
             unregisterReceiver(responseReceiver);
         }
+        textExecutor.shutdownNow();
         super.onDestroy();
     }
 }

@@ -6,6 +6,16 @@ import java.util.Map;
 
 public final class LiveRunCoordinatorTest {
 
+    public void testDirectChatEventsForgetRunAfterDone() {
+        MemorySecretStore secrets = new MemorySecretStore();
+        LiveRunCoordinator coordinator = new LiveRunCoordinator(new ActiveRunStore(secrets));
+        coordinator.track("text-session", null);
+        coordinator.accept("text-session", new LiveRunEvent("assistant", "Antwort"));
+        coordinator.accept("text-session", new LiveRunEvent("done", null));
+        Assert.eq("Antwort", coordinator.registry().get("text-session").text());
+        Assert.eq(0, new ActiveRunStore(secrets).load().size());
+    }
+
     public void testTracksVoiceResultAndForgetsRunAfterDone() throws Exception {
         MemorySecretStore secrets = new MemorySecretStore();
         ActiveRunStore store = new ActiveRunStore(secrets);

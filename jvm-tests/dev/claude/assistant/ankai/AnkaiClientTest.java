@@ -69,6 +69,26 @@ public class AnkaiClientTest {
         }
     }
 
+    public void testTextChatStreamsSessionAssistantAndDone() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.respond("/api/chat", 200, "application/x-ndjson",
+                    "{\"type\":\"session\",\"sessionId\":\"s-text\"}\n"
+                    + "{\"type\":\"assistant\",\"text\":\"Antwort\"}\n"
+                    + "{\"type\":\"done\"}\n");
+            List<LiveRunEvent> events = new ArrayList<>();
+            String sessionId = clientFor(fake).sendText(new TextRequest("Hallo", "p1"), events::add);
+            Assert.eq("s-text", sessionId);
+            Assert.eq(3, events.size());
+            Assert.eq("s-text", events.get(0).text);
+            Assert.eq("Antwort", events.get(1).text);
+            Assert.isTrue("Text muss gesendet werden", fake.lastBody.contains("Hallo"));
+            Assert.isTrue("Default-Projekt muss gesendet werden", fake.lastBody.contains("p1"));
+        } finally {
+            fake.stop();
+        }
+    }
+
     public void testLiveRunStreamsAssistantAndDoneEvents() throws Exception {
         FakeAnkai fake = new FakeAnkai();
         try {

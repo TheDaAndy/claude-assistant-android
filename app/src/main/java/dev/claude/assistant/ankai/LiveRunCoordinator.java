@@ -26,8 +26,22 @@ public final class LiveRunCoordinator {
         return registry.start(result.sessionId, result.runId);
     }
 
+    /** Registriert auch Chatlaeufe, deren Startstream nur eine Session-ID liefert. */
+    public LiveRunState track(String sessionId, String runId) {
+        store.remember(sessionId, runId);
+        return registry.start(sessionId, runId);
+    }
+
     public LiveRunRegistry registry() {
         return registry;
+    }
+
+    /** Uebernimmt ein Ereignis aus dem direkten /api/chat-Startstream. */
+    public void accept(String sessionId, LiveRunEvent event) {
+        LiveRunState state = registry.get(sessionId);
+        if (state == null) throw new IllegalArgumentException("Unbekannte Session-ID");
+        state.accept(event);
+        if (state.isDone()) store.forget(state.sessionId());
     }
 
     /**

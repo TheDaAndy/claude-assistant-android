@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.VoiceSubmission;
+import dev.claude.assistant.ankai.TextSubmission;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.AnkaiRoutingException;
@@ -64,7 +65,7 @@ public class AssistActivity extends Activity {
         progressBar = findViewById(R.id.progress_bar);
 
         micButton.setOnClickListener(v -> toggleRecording());
-        sendButton.setOnClickListener(v -> sendToClaudeCode());
+        sendButton.setOnClickListener(v -> sendText());
 
         // Auto-start speech recognition when opened via gesture
         if (getIntent().getAction() != null &&
@@ -253,7 +254,7 @@ public class AssistActivity extends Activity {
         }
     }
 
-    private void sendToClaudeCode() {
+    private void sendText() {
         String prompt = inputField.getText().toString().trim();
         if (prompt.isEmpty()) return;
 
@@ -262,7 +263,20 @@ public class AssistActivity extends Activity {
         micButton.setEnabled(false);
         sendButton.setEnabled(false);
 
-        TermuxBridge.executeClaudeCode(this, prompt);
+        inputField.setEnabled(false);
+        voiceExecutor.execute(() -> {
+            try {
+                new TextSubmission(EncryptedPrefsSecretStore.connectionStore(getApplicationContext()),
+                        LiveRunRuntime.coordinator(getApplicationContext())).submit(prompt);
+                startLiveRunService();
+                runOnUiThread(() -> {
+                    setVoiceBusy(false);
+                    responseView.setText(getString(R.string.status_thinking));
+                });
+            } catch (Throwable error) {
+                runOnUiThread(() -> displayVoiceError(error));
+            }
+        });
     }
 
     private void displayResponse(String response, int exitCode) {

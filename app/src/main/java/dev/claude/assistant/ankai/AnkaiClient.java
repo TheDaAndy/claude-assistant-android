@@ -111,6 +111,42 @@ public final class AnkaiClient {
         }
     }
 
+    /** Startet einen textbasierten Chat und spiegelt dessen NDJSON-Ereignisse. */
+    public String sendText(TextRequest request, LiveRunListener listener) throws IOException {
+        HttpURLConnection connection = open("/api/chat", "POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", request.contentType());
+        connection.setRequestProperty("Accept", "application/x-ndjson");
+        byte[] body = request.body();
+        connection.setFixedLengthStreamingMode(body.length);
+        try {
+            try (OutputStream out = connection.getOutputStream()) { out.write(body); }
+            int status = connection.getResponseCode();
+            captureCookie(connection);
+            if (status == 401 || status == 403) throw new AnkaiAuthException("Ankai-Verknuepfung ist abgelaufen");
+            if (status >= 400) throw toError(parseOrNull(readBody(errorStream(connection))),
+                    "Ankai antwortete mit HTTP " + status);
+            String sessionId = null;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    Map<String, Object> payload = parseOrNull(line);
+                    if (payload == null) continue;
+                    String type = AnkaiJson.string(payload, "type");
+                    String text = "session".equals(type) ? AnkaiJson.string(payload, "sessionId")
+                            : AnkaiJson.string(payload, "text");
+                    if ("session".equals(type)) sessionId = text;
+                    if (type != null && listener != null) listener.onEvent(new LiveRunEvent(type, text));
+                }
+            }
+            if (sessionId == null) throw new AnkaiApiException("Ankai hat den Chat nicht bestaetigt");
+            return sessionId;
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     /**
      * Verbindet sich mit dem Live-Stream eines sichtbaren Chatlaufs.
      *
