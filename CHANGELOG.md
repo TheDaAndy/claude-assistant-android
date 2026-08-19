@@ -24,3 +24,6 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
   und `EncryptedPrefsSecretStore` auf Basis von `EncryptedSharedPreferences` mit Android-Keystore-Masterkey.
 - `AnkaiClient.useSessionCookie(...)`, damit ein gespeichertes Cookie nach App-Neustart weitergenutzt wird.
 - Abhaengigkeit `androidx.security:security-crypto`.
+- Android-freie Zustandslogik fuer die Verknuepfungs-UI (`ConnectionPresenter`/`ConnectionUiState`):
+  validiert Zugangsdaten, speichert erst nach erfolgreichem Login samt Projektabruf, verwaltet das
+  Default-Projekt und trennt lokal auch bei einem nicht erreichbaren Server.
