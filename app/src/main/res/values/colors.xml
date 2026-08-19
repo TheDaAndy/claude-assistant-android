@@ -11,4 +11,6 @@
     <color name="text_secondary">#B0B0B0</color>
     <color name="input_background">#3D3D3D</color>
     <color name="response_background">#252525</color>
+    <color name="live_run_active">#F59E0B</color>
+    <color name="live_run_done">#22C55E</color>
 </resources>

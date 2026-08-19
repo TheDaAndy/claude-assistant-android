@@ -113,4 +113,31 @@ public final class LiveRunRegistryTest {
         Assert.eq(1, snapshots.size());
         Assert.eq("Laeuft weiter", run.text());
     }
+
+    public void testLatestObserverGetsCurrentAndNewRunsButNotReconnects() {
+        LiveRunRegistry registry = new LiveRunRegistry();
+        LiveRunState first = registry.start("session-1", "run-1");
+        java.util.List<LiveRunState> observed = new java.util.ArrayList<>();
+
+        LiveRunSubscription subscription = registry.observeLatest(observed::add);
+        registry.start("session-1", "ignored-reconnect");
+        LiveRunState second = registry.start("session-2", "run-2");
+
+        Assert.eq(2, observed.size());
+        Assert.isTrue("Aktueller Lauf muss sofort geliefert werden", first == observed.get(0));
+        Assert.isTrue("Neuer Lauf fehlt", second == observed.get(1));
+        subscription.close();
+    }
+
+    public void testClosedLatestObserverStopsUpdatesWithoutStoppingRegistry() {
+        LiveRunRegistry registry = new LiveRunRegistry();
+        java.util.List<LiveRunState> observed = new java.util.ArrayList<>();
+        LiveRunSubscription subscription = registry.observeLatest(observed::add);
+
+        subscription.close();
+        registry.start("session-1", "run-1");
+
+        Assert.eq(0, observed.size());
+        Assert.eq(1, registry.size());
+    }
 }

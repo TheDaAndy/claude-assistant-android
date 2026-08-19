@@ -2,6 +2,7 @@ package dev.claude.assistant;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.PixelFormat;
 import android.os.IBinder;
 import android.view.Gravity;
@@ -11,9 +12,16 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
 
+import dev.claude.assistant.ankai.LiveRunSnapshot;
+import dev.claude.assistant.ankai.LiveRunState;
+import dev.claude.assistant.ankai.LiveRunSubscription;
+
 public class FloatingWidgetService extends Service {
     private WindowManager windowManager;
     private View floatingView;
+    private View liveRunStatus;
+    private LiveRunSubscription latestRunSubscription;
+    private LiveRunSubscription runSubscription;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -44,9 +52,30 @@ public class FloatingWidgetService extends Service {
 
         ImageView fabIcon = floatingView.findViewById(R.id.fab_icon);
         fabIcon.setOnClickListener(v -> openAssistantDialog());
+        liveRunStatus = floatingView.findViewById(R.id.live_run_status);
+        floatingView.setContentDescription(getString(R.string.floating_widget_ready));
+        latestRunSubscription = LiveRunRuntime.coordinator(getApplicationContext())
+            .registry().observeLatest(this::observeRun);
 
         // Drag support
         setupDragListener(floatingView, params);
+    }
+
+    private void observeRun(LiveRunState run) {
+        if (runSubscription != null) runSubscription.close();
+        runSubscription = run.observe(this::displayRunStatus);
+    }
+
+    private void displayRunStatus(LiveRunSnapshot snapshot) {
+        liveRunStatus.post(() -> {
+            boolean done = snapshot.isDone();
+            int color = getColor(done ? R.color.live_run_done : R.color.live_run_active);
+            liveRunStatus.setBackgroundTintList(ColorStateList.valueOf(color));
+            liveRunStatus.setVisibility(View.VISIBLE);
+            floatingView.setContentDescription(getString(done
+                ? R.string.floating_widget_run_done
+                : R.string.floating_widget_run_active));
+        });
     }
 
     private void setupDragListener(View view, WindowManager.LayoutParams params) {
@@ -94,9 +123,11 @@ public class FloatingWidgetService extends Service {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
+        if (runSubscription != null) runSubscription.close();
+        if (latestRunSubscription != null) latestRunSubscription.close();
         if (floatingView != null) {
             windowManager.removeView(floatingView);
         }
+        super.onDestroy();
     }
 }

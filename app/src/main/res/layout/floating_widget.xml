@@ -11,4 +11,13 @@
         android:background="@drawable/fab_background"
         android:padding="12dp"
         android:elevation="6dp" />
+
+    <View
+        android:id="@+id/live_run_status"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_gravity="end|bottom"
+        android:background="@drawable/live_run_status_background"
+        android:elevation="8dp"
+        android:visibility="gone" />
 </FrameLayout>
