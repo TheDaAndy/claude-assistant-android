@@ -32,6 +32,8 @@
     <string name="playback_voice_default">Engine-Standard</string>
     <string name="playback_voice_network">Netzwerk</string>
     <string name="playback_voice_offline">offline verfügbar</string>
+    <string name="playback_voice_preview">Stimme anhören</string>
+    <string name="playback_voice_preview_text">Hallo, ich bin deine ausgewählte Ankaï-Stimme.</string>
     <string name="playback_engine_hint">Installierte Engines verwalten Datenschutz, Offline-Stimmen und mögliche Kosten selbst.</string>
     <string name="floating_widget_ready">Assistent öffnen</string>
     <string name="floating_widget_run_active">Assistent öffnen, Ankaï verarbeitet eine Anfrage</string>

@@ -23,6 +23,7 @@ import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.ConnectionPresenter;
 import dev.claude.assistant.ankai.ConnectionUiState;
 import dev.claude.assistant.ankai.PlaybackSettings;
+import dev.claude.assistant.ankai.VoicePreviewController;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class MainActivity extends Activity {
@@ -40,7 +41,9 @@ public class MainActivity extends Activity {
     private Switch autoplaySwitch;
     private Spinner engineSpinner;
     private Spinner voiceSpinner;
+    private Button voicePreviewButton;
     private PlaybackSettings playbackSettings;
+    private VoicePreviewController voicePreview;
     private TextToSpeech ttsProbe;
     private int ttsProbeGeneration;
 
@@ -51,10 +54,20 @@ public class MainActivity extends Activity {
         bindViews();
         presenter = new ConnectionPresenter(EncryptedPrefsSecretStore.connectionStore(this));
         playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
+        voicePreview = new VoicePreviewController(() -> {
+            AndroidSpeechPlayback playback = new AndroidSpeechPlayback(
+                    getApplicationContext(), playbackSettings);
+            return new VoicePreviewController.Channel() {
+                @Override public void speak(String text) { playback.speak(text); }
+                @Override public void close() { playback.shutdown(); }
+            };
+        });
         autoplaySwitch.setChecked(playbackSettings.isAutoplayEnabled());
         autoplaySwitch.setOnCheckedChangeListener((button, enabled) ->
                 playbackSettings.setAutoplayEnabled(enabled));
         loadSpeechEngines();
+        voicePreviewButton.setOnClickListener(view -> voicePreview.preview(
+                getString(R.string.playback_voice_preview_text)));
 
         connectButton.setOnClickListener(view -> connect());
         disconnectButton.setOnClickListener(view -> runNetwork(presenter::disconnect));
@@ -85,11 +98,14 @@ public class MainActivity extends Activity {
         autoplaySwitch = findViewById(R.id.ankai_autoplay);
         engineSpinner = findViewById(R.id.playback_engine);
         voiceSpinner = findViewById(R.id.playback_voice);
+        voicePreviewButton = findViewById(R.id.playback_voice_preview);
     }
 
     private void loadSpeechEngines() {
         engineSpinner.setEnabled(false);
         voiceSpinner.setEnabled(false);
+        voicePreviewButton.setEnabled(false);
+        if (voicePreview != null) voicePreview.close();
         if (ttsProbe != null) ttsProbe.shutdown();
         int generation = ++ttsProbeGeneration;
         String enginePackage = playbackSettings.getEnginePackage();
@@ -168,9 +184,11 @@ public class MainActivity extends Activity {
         voiceSpinner.setAdapter(adapter);
         voiceSpinner.setSelection(selectedPosition, false);
         voiceSpinner.setEnabled(status == TextToSpeech.SUCCESS);
+        voicePreviewButton.setEnabled(status == TextToSpeech.SUCCESS);
         voiceSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
             Object selected = voiceSpinner.getItemAtPosition(position);
             if (selected instanceof VoiceChoice) {
+                voicePreview.close();
                 playbackSettings.setVoiceName(((VoiceChoice) selected).name);
             }
         }));
@@ -251,6 +269,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         networkExecutor.shutdownNow();
+        if (voicePreview != null) voicePreview.close();
         if (ttsProbe != null) ttsProbe.shutdown();
         super.onDestroy();
     }
