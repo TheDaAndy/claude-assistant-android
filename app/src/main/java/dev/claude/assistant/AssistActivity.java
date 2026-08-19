@@ -1,13 +1,15 @@
 package dev.claude.assistant;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
-import android.speech.RecognizerIntent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
@@ -15,10 +17,18 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import dev.claude.assistant.ankai.VoiceSubmission;
+import dev.claude.assistant.ankai.VoiceUiFormatter;
+import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class AssistActivity extends Activity {
-    private static final int SPEECH_REQUEST_CODE = 100;
+    private static final int RECORD_AUDIO_REQUEST_CODE = 101;
 
     private EditText inputField;
     private TextView responseView;
@@ -27,6 +37,10 @@ public class AssistActivity extends Activity {
     private ProgressBar progressBar;
 
     private BroadcastReceiver responseReceiver;
+    private final ExecutorService voiceExecutor = Executors.newSingleThreadExecutor();
+    private MediaRecorder recorder;
+    private File recordingFile;
+    private boolean recording;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,13 +60,13 @@ public class AssistActivity extends Activity {
         sendButton = findViewById(R.id.send_button);
         progressBar = findViewById(R.id.progress_bar);
 
-        micButton.setOnClickListener(v -> startSpeechRecognition());
+        micButton.setOnClickListener(v -> toggleRecording());
         sendButton.setOnClickListener(v -> sendToClaudeCode());
 
         // Auto-start speech recognition when opened via gesture
         if (getIntent().getAction() != null &&
             getIntent().getAction().equals(Intent.ACTION_ASSIST)) {
-            startSpeechRecognition();
+            startRecordingWithPermission();
         }
 
         // Register response receiver
@@ -77,31 +91,118 @@ public class AssistActivity extends Activity {
         }
     }
 
-    private void startSpeechRecognition() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.status_ready));
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE");
-        startActivityForResult(intent, SPEECH_REQUEST_CODE);
+    private void toggleRecording() {
+        if (recording) {
+            stopRecordingAndSubmit();
+        } else {
+            startRecordingWithPermission();
+        }
+    }
+
+    private void startRecordingWithPermission() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, RECORD_AUDIO_REQUEST_CODE);
+            return;
+        }
+        startRecording();
+    }
+
+    private void startRecording() {
+        recordingFile = new File(getCacheDir(), "ankai-voice-" + System.currentTimeMillis() + ".m4a");
+        recorder = new MediaRecorder();
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        recorder.setAudioEncodingBitRate(128000);
+        recorder.setAudioSamplingRate(44100);
+        recorder.setOutputFile(recordingFile.getAbsolutePath());
+        try {
+            recorder.prepare();
+            recorder.start();
+            recording = true;
+            responseView.setText(getString(R.string.status_recording));
+            inputField.setEnabled(false);
+            sendButton.setEnabled(false);
+        } catch (IOException | RuntimeException error) {
+            releaseRecorder();
+            deleteRecording();
+            displayVoiceError(error);
+        }
+    }
+
+    private void stopRecordingAndSubmit() {
+        try {
+            recorder.stop();
+        } catch (RuntimeException error) {
+            releaseRecorder();
+            deleteRecording();
+            displayVoiceError(new IOException(getString(R.string.error_recording_too_short), error));
+            return;
+        }
+        releaseRecorder();
+        recording = false;
+        setVoiceBusy(true);
+        responseView.setText(getString(R.string.status_uploading));
+        File file = recordingFile;
+        voiceExecutor.execute(() -> submitRecording(file));
+    }
+
+    private void submitRecording(File file) {
+        try {
+            byte[] audio = Files.readAllBytes(file.toPath());
+            VoiceSubmission submission = new VoiceSubmission(
+                    EncryptedPrefsSecretStore.connectionStore(getApplicationContext()));
+            runOnUiThread(() -> responseView.setText(getString(R.string.status_uploading)));
+            dev.claude.assistant.ankai.VoiceResult result = submission.submit(
+                    file.getName(), "audio/mp4", audio,
+                    (percent, stage) -> runOnUiThread(() ->
+                            responseView.setText(VoiceUiFormatter.progress(percent, stage))));
+            runOnUiThread(() -> {
+                setVoiceBusy(false);
+                responseView.setText(VoiceUiFormatter.result(result));
+            });
+        } catch (Throwable error) {
+            runOnUiThread(() -> displayVoiceError(error));
+        } finally {
+            if (file != null) file.delete();
+            recordingFile = null;
+        }
+    }
+
+    private void displayVoiceError(Throwable error) {
+        recording = false;
+        setVoiceBusy(false);
+        responseView.setText(VoiceUiFormatter.error(error));
+    }
+
+    private void setVoiceBusy(boolean busy) {
+        progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
+        micButton.setEnabled(!busy);
+        sendButton.setEnabled(!busy);
+        inputField.setEnabled(!busy);
+    }
+
+    private void releaseRecorder() {
+        if (recorder != null) {
+            recorder.release();
+            recorder = null;
+        }
+    }
+
+    private void deleteRecording() {
+        if (recordingFile != null) recordingFile.delete();
+        recordingFile = null;
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == SPEECH_REQUEST_CODE) {
-            if (resultCode == RESULT_OK && data != null) {
-                ArrayList<String> results = data.getStringArrayListExtra(
-                    RecognizerIntent.EXTRA_RESULTS);
-                if (results != null && !results.isEmpty()) {
-                    inputField.setText(results.get(0));
-                    sendToClaudeCode();
-                }
-            } else {
-                // Speech input cancelled - still allow text input
-                responseView.setText(getString(R.string.speech_cancelled));
-            }
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != RECORD_AUDIO_REQUEST_CODE) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startRecording();
+        } else {
+            responseView.setText(getString(R.string.error_microphone_permission));
         }
-        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void sendToClaudeCode() {
@@ -133,9 +234,19 @@ public class AssistActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         if (responseReceiver != null) {
             unregisterReceiver(responseReceiver);
         }
+        if (recording && recorder != null) {
+            try {
+                recorder.stop();
+            } catch (RuntimeException ignored) {
+                // Eine zu kurze Aufnahme ist beim Schliessen absichtlich unbrauchbar.
+            }
+        }
+        releaseRecorder();
+        deleteRecording();
+        voiceExecutor.shutdownNow();
+        super.onDestroy();
     }
 }

@@ -19,5 +19,6 @@ java -cp "$OUT" TestRunner \
   dev.claude.assistant.ankai.VoiceRequestTest \
   dev.claude.assistant.ankai.AnkaiClientTest \
   dev.claude.assistant.ankai.VoiceSubmissionTest \
+  dev.claude.assistant.ankai.VoiceUiFormatterTest \
   dev.claude.assistant.ankai.AnkaiConnectionStoreTest \
   dev.claude.assistant.ankai.ConnectionPresenterTest
