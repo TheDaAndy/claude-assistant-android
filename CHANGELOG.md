@@ -5,6 +5,8 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 ## [Unreleased]
 
 ### Behoben
+- Nach einer fehlgeschlagenen Ankaï-Anmeldung bleibt das eingegebene Passwort im Formular erhalten,
+  damit die Anmeldung ohne erneute vollständige Eingabe korrigiert oder wiederholt werden kann.
 - Die Assistant- und Launcher-Vector-Drawables verwenden gueltige Android-`path`-Elemente,
   sodass AAPT die Debug-APK wieder erfolgreich erzeugen kann.
 

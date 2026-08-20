@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.ConnectionPresenter;
+import dev.claude.assistant.ankai.ConnectionFormPolicy;
 import dev.claude.assistant.ankai.ConnectionUiState;
 import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.ankai.VoicePreviewController;
@@ -256,6 +257,7 @@ public class MainActivity extends Activity {
 
     private void render(ConnectionUiState state) {
         setBusy(false);
+        if (ConnectionFormPolicy.shouldClearPassword(state)) password.setText("");
         connectionError.setText(state.error == null ? "" : state.error);
         connectionError.setVisibility(state.error == null ? View.GONE : View.VISIBLE);
 
@@ -271,7 +273,6 @@ public class MainActivity extends Activity {
 
         if (!state.connected) {
             connectionStatus.setText(R.string.ankai_not_connected);
-            password.setText("");
             return;
         }
 
