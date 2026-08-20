@@ -143,6 +143,7 @@ public final class LiveRunState implements LiveRunListener {
                         return;
                     }
                     replayedHistory.clear();
+                    if (isLastMessage(addition)) return;
                     if (text.length() > 0) text.append("\n\n");
                     text.append(addition);
                     changed = snapshot();
@@ -155,6 +156,12 @@ public final class LiveRunState implements LiveRunListener {
         if (changed != null) {
             for (LiveRunObserver observer : observers) observer.onChanged(changed);
         }
+    }
+
+    private synchronized boolean isLastMessage(String value) {
+        if (text.length() == 0) return false;
+        int separator = text.lastIndexOf("\n\n");
+        return text.substring(separator < 0 ? 0 : separator + 2).equals(value);
     }
 
     private static String blankToNull(String value) {

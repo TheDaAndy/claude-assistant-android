@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.4
+
+- Identische, unmittelbar wiederholte Live-Antwortereignisse werden nur einmal angezeigt und
+  nur einmal an den Wiedergabekanal uebergeben.
+
 ## 1.0.3
 
 - Der als Android-Standard-Assistent gestartete Homebutton-Dialog zeigt nun die gestreamten

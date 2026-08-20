@@ -80,6 +80,19 @@ public final class LiveRunRegistryTest {
         Assert.eq("Alt eins\n\nAlt zwei\n\nNeu", run.text());
     }
 
+    public void testRepeatedIdenticalLiveEventIsShownAndSpokenOnlyOnce() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        new LiveRunSpeechController(run, playback);
+
+        run.accept(new LiveRunEvent("assistant", "Dieselbe vollständige Antwort"));
+        run.accept(new LiveRunEvent("assistant", "Dieselbe vollständige Antwort"));
+
+        Assert.eq("Dieselbe vollständige Antwort", run.text());
+        Assert.eq(1, playback.spoken.size());
+        Assert.eq("Dieselbe vollständige Antwort", playback.spoken.get(0));
+    }
+
     public void testLatePlaybackRegistrationOnClosedRunStopsImmediately() {
         LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
         run.closeOverlay();
