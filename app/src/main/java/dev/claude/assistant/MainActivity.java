@@ -1,7 +1,12 @@
 package dev.claude.assistant;
 
 import android.app.Activity;
+import android.app.role.RoleManager;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.os.Bundle;
+import android.os.Build;
+import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.Voice;
 import android.view.View;
@@ -23,6 +28,7 @@ import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.ConnectionPresenter;
 import dev.claude.assistant.ankai.ConnectionFormPolicy;
 import dev.claude.assistant.ankai.ConnectionUiState;
+import dev.claude.assistant.ankai.DefaultAssistantSetupPolicy;
 import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.ankai.VoicePreviewController;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
@@ -44,6 +50,7 @@ public class MainActivity extends Activity {
     private Spinner voiceSpinner;
     private Spinner speechRateSpinner;
     private Button voicePreviewButton;
+    private Button defaultAssistantButton;
     private PlaybackSettings playbackSettings;
     private VoicePreviewController voicePreview;
     private TextToSpeech ttsProbe;
@@ -71,6 +78,7 @@ public class MainActivity extends Activity {
         renderSpeechRates();
         voicePreviewButton.setOnClickListener(view -> voicePreview.preview(
                 getString(R.string.playback_voice_preview_text)));
+        defaultAssistantButton.setOnClickListener(view -> openDefaultAssistantSetup());
 
         connectButton.setOnClickListener(view -> connect());
         disconnectButton.setOnClickListener(view -> runNetwork(presenter::disconnect));
@@ -103,6 +111,42 @@ public class MainActivity extends Activity {
         voiceSpinner = findViewById(R.id.playback_voice);
         speechRateSpinner = findViewById(R.id.playback_speech_rate);
         voicePreviewButton = findViewById(R.id.playback_voice_preview);
+        defaultAssistantButton = findViewById(R.id.default_assistant_setup);
+    }
+
+    private void openDefaultAssistantSetup() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            RoleManager roleManager = getSystemService(RoleManager.class);
+            if (roleManager != null && DefaultAssistantSetupPolicy.shouldRequestAssistantRole(
+                    Build.VERSION.SDK_INT, roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT))) {
+                startActivity(roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT));
+                return;
+            }
+        }
+        try {
+            startActivity(new Intent(Settings.ACTION_VOICE_INPUT_SETTINGS));
+        } catch (ActivityNotFoundException unavailable) {
+            startActivity(new Intent(Settings.ACTION_SETTINGS));
+        }
+    }
+
+    private boolean isDefaultAssistant() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false;
+        RoleManager roleManager = getSystemService(RoleManager.class);
+        return roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT)
+                && roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (defaultAssistantButton != null) {
+            boolean selected = isDefaultAssistant();
+            defaultAssistantButton.setText(selected
+                    ? R.string.default_assistant_active
+                    : R.string.default_assistant_setup);
+            defaultAssistantButton.setEnabled(!selected);
+        }
     }
 
     private void renderSpeechRates() {

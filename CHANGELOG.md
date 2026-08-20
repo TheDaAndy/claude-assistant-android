@@ -11,6 +11,9 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
   sodass AAPT die Debug-APK wieder erfolgreich erzeugen kann.
 
 ### Hinzugefuegt
+- Ein Button in der Hauptansicht oeffnet direkt den Android-Systemdialog zur Auswahl als
+  Standard-Assistent; auf aelteren oder abweichenden Geraeten werden die passenden Einstellungen
+  geoeffnet und eine bereits aktive Assistentenrolle wird sichtbar bestaetigt.
 - Reproduzierbarer Headless-Emulator-Smoke-Test, der die Debug-APK baut, auf einem
   konfigurierbaren AVD installiert, `MainActivity` startet und Prozess-, Activity- und Crashstatus prueft.
 - Ausgewaehlte Android-TTS-Stimmen lassen sich direkt mit einem kurzen Beispielsatz und demselben

@@ -14,6 +14,8 @@
     <string name="error_recording_too_short">Die Aufnahme war zu kurz. Bitte erneut versuchen.</string>
     <string name="speech_cancelled">Spracheingabe abgebrochen. Du kannst auch tippen.</string>
     <string name="setup_instructions">Willkommen! Lege diese App als Standard-Assistent fest und starte sie per langem Druck auf Home oder über das Quick-Settings-Tile.</string>
+    <string name="default_assistant_setup">Als Standard-Assistent festlegen</string>
+    <string name="default_assistant_active">Ankaï ist Standard-Assistent</string>
     <string name="ankai_connection_heading">Ankaï-Verknüpfung</string>
     <string name="ankai_not_connected">Nicht verbunden</string>
     <string name="ankai_connected_as">Verbunden als %1$s mit %2$s</string>

@@ -31,4 +31,5 @@ java -cp "$OUT" TestRunner \
   dev.claude.assistant.ankai.VoicePreviewControllerTest \
   dev.claude.assistant.ankai.AnkaiConnectionStoreTest \
   dev.claude.assistant.ankai.ConnectionFormPolicyTest \
+  dev.claude.assistant.ankai.DefaultAssistantSetupPolicyTest \
   dev.claude.assistant.ankai.ConnectionPresenterTest
