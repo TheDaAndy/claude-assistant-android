@@ -5,6 +5,9 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 ## [Unreleased]
 
 ### Behoben
+- Wenn ein Hersteller den Android-Assistenten-Rollendialog ohne sichtbare Auswahl schliesst,
+  oeffnet der Setup-Button nun automatisch die sichtbare Seite fuer Standard-Apps. Der bisherige
+  Fallback auf die unpassenden Spracheingabe-Einstellungen wurde entsprechend ersetzt.
 - Nach einer fehlgeschlagenen Ankaï-Anmeldung bleibt das eingegebene Passwort im Formular erhalten,
   damit die Anmeldung ohne erneute vollständige Eingabe korrigiert oder wiederholt werden kann.
 - Die Assistant- und Launcher-Vector-Drawables verwenden gueltige Android-`path`-Elemente,

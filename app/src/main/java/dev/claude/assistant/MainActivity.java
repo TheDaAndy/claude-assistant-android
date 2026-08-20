@@ -34,6 +34,7 @@ import dev.claude.assistant.ankai.VoicePreviewController;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class MainActivity extends Activity {
+    private static final int REQUEST_ASSISTANT_ROLE = 1001;
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private ConnectionPresenter presenter;
     private EditText instanceUrl;
@@ -119,14 +120,34 @@ public class MainActivity extends Activity {
             RoleManager roleManager = getSystemService(RoleManager.class);
             if (roleManager != null && DefaultAssistantSetupPolicy.shouldRequestAssistantRole(
                     Build.VERSION.SDK_INT, roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT))) {
-                startActivity(roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT));
-                return;
+                try {
+                    startActivityForResult(
+                            roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
+                            REQUEST_ASSISTANT_ROLE);
+                    return;
+                } catch (ActivityNotFoundException | SecurityException unavailable) {
+                    // Einige Hersteller melden die Rolle als verfuegbar, bieten aber keinen Dialog an.
+                }
             }
         }
+        openDefaultAppsSettings();
+    }
+
+    private void openDefaultAppsSettings() {
         try {
-            startActivity(new Intent(Settings.ACTION_VOICE_INPUT_SETTINGS));
+            startActivity(new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));
         } catch (ActivityNotFoundException unavailable) {
             startActivity(new Intent(Settings.ACTION_SETTINGS));
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_ASSISTANT_ROLE
+                && DefaultAssistantSetupPolicy.shouldOpenSettingsAfterRoleRequest(
+                        isDefaultAssistant())) {
+            openDefaultAppsSettings();
         }
     }
 

@@ -15,4 +15,14 @@ public class DefaultAssistantSetupPolicyTest {
         Assert.isTrue("nicht verfuegbare Rolle braucht den Einstellungs-Fallback",
                 !DefaultAssistantSetupPolicy.shouldRequestAssistantRole(34, false));
     }
+
+    public void testAbgelehnteRollenAnfrageOeffnetDefaultAppEinstellungen() {
+        Assert.isTrue("ohne gehaltene Rolle muss die sichtbare Einstellungsseite folgen",
+                DefaultAssistantSetupPolicy.shouldOpenSettingsAfterRoleRequest(false));
+    }
+
+    public void testErfolgreicheRollenAnfrageOeffnetKeineZweiteSeite() {
+        Assert.isTrue("mit gehaltener Rolle ist kein Fallback notwendig",
+                !DefaultAssistantSetupPolicy.shouldOpenSettingsAfterRoleRequest(true));
+    }
 }

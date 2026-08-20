@@ -7,4 +7,8 @@ public final class DefaultAssistantSetupPolicy {
     public static boolean shouldRequestAssistantRole(int sdkInt, boolean roleAvailable) {
         return sdkInt >= 29 && roleAvailable;
     }
+
+    public static boolean shouldOpenSettingsAfterRoleRequest(boolean roleHeld) {
+        return !roleHeld;
+    }
 }
