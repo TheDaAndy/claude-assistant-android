@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.8
+
+- Das Texteingabefeld wurde aus dem Homebutton-Assistant entfernt. Der einzige Aktionsbutton
+  startet nun die Sprachaufnahme und wechselt waehrend der Aufnahme zu „Abschicken“.
+
 ## 1.0.7
 
 - Tippen auf den abgedunkelten Bereich schliesst den Standard-Assistant und stoppt dabei wie

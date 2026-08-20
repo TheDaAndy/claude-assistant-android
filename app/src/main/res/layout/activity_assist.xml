@@ -67,39 +67,15 @@
             android:background="@drawable/response_background" />
     </ScrollView>
 
-    <!-- Input Area -->
-    <LinearLayout
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/action_button"
+        style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <EditText
-            android:id="@+id/input_field"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="@string/hint_input"
-            android:inputType="text"
-            android:maxLines="3"
-            android:background="@drawable/input_background"
-            android:padding="12dp"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/action_button"
-            style="@style/Widget.Material3.Button"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:contentDescription="@string/btn_mic_desc"
-            android:minWidth="48dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            app:icon="@drawable/ic_mic"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp" />
-    </LinearLayout>
+        android:layout_height="48dp"
+        android:contentDescription="@string/btn_mic_desc"
+        android:gravity="center"
+        app:icon="@drawable/ic_mic"
+        app:iconGravity="textStart"
+        app:iconPadding="8dp" />
 </LinearLayout>
 </FrameLayout>

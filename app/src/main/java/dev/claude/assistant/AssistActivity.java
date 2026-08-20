@@ -11,11 +11,8 @@ import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -28,8 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.VoiceSubmission;
-import dev.claude.assistant.ankai.AssistantInputPolicy;
-import dev.claude.assistant.ankai.TextSubmission;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.AnkaiRoutingException;
@@ -43,7 +38,6 @@ import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 public class AssistActivity extends Activity {
     private static final int RECORD_AUDIO_REQUEST_CODE = 101;
 
-    private EditText inputField;
     private TextView responseView;
     private MaterialButton actionButton;
     private ProgressBar progressBar;
@@ -75,19 +69,11 @@ public class AssistActivity extends Activity {
             // Klicks innerhalb des Assistant-Panels duerfen die Activity nicht schliessen.
         });
 
-        inputField = findViewById(R.id.input_field);
         responseView = findViewById(R.id.response_view);
         actionButton = findViewById(R.id.action_button);
         progressBar = findViewById(R.id.progress_bar);
 
         actionButton.setOnClickListener(v -> performPrimaryAction());
-        inputField.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                updatePrimaryAction();
-            }
-            @Override public void afterTextChanged(Editable s) {}
-        });
         updatePrimaryAction();
 
         // Auto-start speech recognition when opened via gesture
@@ -119,12 +105,7 @@ public class AssistActivity extends Activity {
     }
 
     private void performPrimaryAction() {
-        if (AssistantInputPolicy.action(recording, inputField.getText().toString())
-                == AssistantInputPolicy.Action.SUBMIT) {
-            if (!recording) {
-                sendText();
-                return;
-            }
+        if (recording) {
             stopRecordingAndSubmit();
         } else {
             startRecordingWithPermission();
@@ -154,7 +135,6 @@ public class AssistActivity extends Activity {
             recording = true;
             updatePrimaryAction();
             responseView.setText(getString(R.string.status_recording));
-            inputField.setEnabled(false);
         } catch (IOException | RuntimeException error) {
             releaseRecorder();
             deleteRecording();
@@ -257,13 +237,11 @@ public class AssistActivity extends Activity {
     private void setVoiceBusy(boolean busy) {
         progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
         actionButton.setEnabled(!busy);
-        inputField.setEnabled(!busy);
     }
 
     private void updatePrimaryAction() {
-        if (actionButton == null || inputField == null) return;
-        boolean submit = AssistantInputPolicy.action(recording, inputField.getText().toString())
-                == AssistantInputPolicy.Action.SUBMIT;
+        if (actionButton == null) return;
+        boolean submit = recording;
         actionButton.setIconResource(submit ? R.drawable.ic_send : R.drawable.ic_mic);
         if (submit) actionButton.setText(R.string.btn_submit);
         else actionButton.setText("");
@@ -292,30 +270,6 @@ public class AssistActivity extends Activity {
         } else {
             responseView.setText(getString(R.string.error_microphone_permission));
         }
-    }
-
-    private void sendText() {
-        String prompt = inputField.getText().toString().trim();
-        if (prompt.isEmpty()) return;
-
-        progressBar.setVisibility(View.VISIBLE);
-        responseView.setText(getString(R.string.status_thinking));
-        actionButton.setEnabled(false);
-
-        inputField.setEnabled(false);
-        voiceExecutor.execute(() -> {
-            try {
-                new TextSubmission(EncryptedPrefsSecretStore.connectionStore(getApplicationContext()),
-                        LiveRunRuntime.coordinator(getApplicationContext())).submit(prompt);
-                startLiveRunService();
-                runOnUiThread(() -> {
-                    setVoiceBusy(false);
-                    observeLatestRun();
-                });
-            } catch (Throwable error) {
-                runOnUiThread(() -> displayVoiceError(error));
-            }
-        });
     }
 
     private void displayResponse(String response, int exitCode) {
