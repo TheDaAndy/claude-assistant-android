@@ -217,6 +217,28 @@ public final class AnkaiClient {
         }
     }
 
+    /** Erzeugt serverseitig kostenfreies Piper-TTS und liefert eine WAV-Datei. */
+    public byte[] synthesizeSpeech(String text) throws IOException {
+        String value = text == null ? "" : text.trim();
+        if (value.isEmpty()) throw new IllegalArgumentException("Text fehlt");
+        HttpURLConnection connection = open("/api/tts", "POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        byte[] body = ("{\"text\":\"" + escapeJson(value) + "\"}").getBytes(StandardCharsets.UTF_8);
+        connection.setFixedLengthStreamingMode(body.length);
+        try {
+            try (OutputStream out = connection.getOutputStream()) { out.write(body); }
+            int status = connection.getResponseCode();
+            captureCookie(connection);
+            if (status == 401 || status == 403) throw new AnkaiAuthException("Ankai-Verknuepfung ist abgelaufen");
+            if (status >= 400) throw toError(parseOrNull(readBody(errorStream(connection))),
+                    "Server-Sprachausgabe nicht verfuegbar (HTTP " + status + ")");
+            return readBytes(connection.getInputStream());
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     /** Trennt die Verknuepfung serverseitig und verwirft das Sessioncookie. */
     public void disconnect() {
         try {
@@ -340,12 +362,21 @@ public final class AnkaiClient {
     }
 
     private static String readBody(InputStream in) throws IOException {
+        return new String(readBytes(in), StandardCharsets.UTF_8);
+    }
+
+    private static byte[] readBytes(InputStream in) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] chunk = new byte[4096];
         int n;
         while ((n = in.read(chunk)) > 0) buffer.write(chunk, 0, n);
         in.close();
-        return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+        return buffer.toByteArray();
+    }
+
+    private static String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
     }
 
     private static Map<String, Object> parseOrNull(String json) {

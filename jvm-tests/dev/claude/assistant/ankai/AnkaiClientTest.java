@@ -4,6 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AnkaiClientTest {
+    public void testServerSpeechReturnsWaveAndEscapesText() throws Exception {
+        FakeAnkai server = new FakeAnkai();
+        try {
+            server.respond("/api/tts", 200, "audio/wav", "RIFF-wave");
+            AnkaiClient client = new AnkaiClient(new AnkaiEndpoint(server.baseUrl()), "andy", "secret");
+            byte[] audio = client.synthesizeSpeech("Hallo \"Ankaï\"");
+            assert new String(audio, java.nio.charset.StandardCharsets.UTF_8).equals("RIFF-wave");
+            assert server.lastBody.contains("Hallo \\\"Ankaï\\\"");
+        } finally { server.stop(); }
+    }
 
     private AnkaiClient clientFor(FakeAnkai fake) {
         return new AnkaiClient(new AnkaiEndpoint(fake.baseUrl()), "anka", "geheim");

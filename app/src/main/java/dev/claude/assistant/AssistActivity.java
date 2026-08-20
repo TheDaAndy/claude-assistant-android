@@ -53,7 +53,7 @@ public class AssistActivity extends Activity {
     private LiveRunState observedRun;
     private LiveRunSubscription liveRunSubscription;
     private LiveRunSpeechController speechController;
-    private AndroidSpeechPlayback speechPlayback;
+    private AndroidServerSpeechPlayback speechPlayback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -311,7 +311,7 @@ public class AssistActivity extends Activity {
         liveRunSubscription = observedRun.observe(this::displayLiveRun);
         PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
         if (playbackSettings.isAutoplayEnabled()) {
-            speechPlayback = new AndroidSpeechPlayback(getApplicationContext(), playbackSettings);
+            speechPlayback = new AndroidServerSpeechPlayback(getApplicationContext());
             speechController = new LiveRunSpeechController(observedRun, speechPlayback);
         }
     }

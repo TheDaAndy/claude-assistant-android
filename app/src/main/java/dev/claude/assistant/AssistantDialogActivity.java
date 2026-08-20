@@ -38,7 +38,7 @@ public class AssistantDialogActivity extends Activity {
     private LiveRunState observedRun;
     private LiveRunSubscription liveRunSubscription;
     private LiveRunSpeechController speechController;
-    private AndroidSpeechPlayback speechPlayback;
+    private AndroidServerSpeechPlayback speechPlayback;
     private final ExecutorService textExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -72,7 +72,7 @@ public class AssistantDialogActivity extends Activity {
         liveRunSubscription = observedRun.observe(this::displayLiveRun);
         PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
         if (playbackSettings.isAutoplayEnabled()) {
-            speechPlayback = new AndroidSpeechPlayback(getApplicationContext(), playbackSettings);
+            speechPlayback = new AndroidServerSpeechPlayback(getApplicationContext());
             speechController = new LiveRunSpeechController(observedRun, speechPlayback);
         }
     }

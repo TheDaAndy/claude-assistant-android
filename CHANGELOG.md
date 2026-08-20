@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.5
+
+- Gestreamte Antworten werden nicht mehr mit der Android-TTS-Engine gesprochen. Die App fordert
+  stattdessen authentifiziert eine kostenfrei auf dem Ankaï-Server mit Piper erzeugte WAV-Datei an
+  und spielt sie lokal ab; Schliessen des Overlays stoppt Download und Wiedergabe sofort.
+
 ## 1.0.4
 
 - Identische, unmittelbar wiederholte Live-Antwortereignisse werden nur einmal angezeigt und
