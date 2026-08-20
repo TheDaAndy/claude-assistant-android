@@ -81,10 +81,10 @@ public class AssistantService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "Claude Assistant",
+                getString(R.string.service_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Claude Assistant is running");
+            channel.setDescription(getString(R.string.service_channel_description));
 
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {

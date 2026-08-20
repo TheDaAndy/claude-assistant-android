@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.2
+
+- App, Quick-Settings-Tile, Status- und Benachrichtigungstexte in „Ankaï Assistant“ umbenannt.
+- Launcher- und Overlay-Symbol auf das Ankaï-Markenlogo umgestellt.
+
 ## [Unreleased]
 
 ### Behoben

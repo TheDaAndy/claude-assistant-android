@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Claude Assistant</string>
-    <string name="tile_label">Claude</string>
+    <string name="app_name">Ankaï Assistant</string>
+    <string name="tile_label">Ankaï</string>
     <string name="hint_input">Nachricht eingeben…</string>
     <string name="btn_mic_desc">Spracheingabe</string>
     <string name="btn_send_desc">Senden</string>
-    <string name="status_thinking">Claude denkt nach…</string>
+    <string name="status_thinking">Ankaï denkt nach…</string>
     <string name="status_ready">Wie kann ich dir helfen?</string>
     <string name="status_recording">Aufnahme läuft – Mikrofon erneut tippen zum Senden.</string>
     <string name="status_uploading">Aufnahme wird sicher an Ankaï übergeben…</string>
@@ -44,4 +44,6 @@
     <string name="floating_widget_ready">Assistent öffnen</string>
     <string name="floating_widget_run_active">Assistent öffnen, Ankaï verarbeitet eine Anfrage</string>
     <string name="floating_widget_run_done">Assistent öffnen, Ankaï-Antwort ist fertig</string>
+    <string name="service_channel_name">Ankaï Assistant</string>
+    <string name="service_channel_description">Ankaï Assistant läuft im Hintergrund</string>
 </resources>
