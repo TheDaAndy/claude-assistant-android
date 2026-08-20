@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.10
+
+- Die wirkungslose Auswahl fuer Android-TTS-Engine, Stimme, Vorschau und Sprechgeschwindigkeit
+  wurde entfernt. Bei aktiviertem Autoplay stammt die fertige Audiodatei weiterhin von der
+  konfigurierten Piper-Stimme der verbundenen Ankaï-Instanz.
+
 ## 1.0.8
 
 - Das Texteingabefeld wurde aus dem Homebutton-Assistant entfernt. Der einzige Aktionsbutton
