@@ -93,6 +93,29 @@ public final class LiveRunRegistryTest {
         Assert.eq("Dieselbe vollständige Antwort", playback.spoken.get(0));
     }
 
+    public void testAssistantMetadataIsNeitherShownNorSpoken() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        new LiveRunSpeechController(run, playback);
+
+        run.accept(new LiveRunEvent("assistant", "ChatTitle: Interner Titel\n\nHallo Andy.\n\nProjectContext: interne Projektdaten"));
+
+        Assert.eq("Hallo Andy.", run.text());
+        Assert.eq(1, playback.spoken.size());
+        Assert.eq("Hallo Andy.", playback.spoken.get(0));
+    }
+
+    public void testMetadataOnlyAssistantEventIsDiscarded() {
+        LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
+        RecordingPlayback playback = new RecordingPlayback();
+        new LiveRunSpeechController(run, playback);
+
+        run.accept(new LiveRunEvent("assistant", "ChatTitle: Nur intern\nProjectContext: ebenfalls intern"));
+
+        Assert.eq("", run.text());
+        Assert.eq(0, playback.spoken.size());
+    }
+
     public void testLatePlaybackRegistrationOnClosedRunStopsImmediately() {
         LiveRunState run = new LiveRunRegistry().start("session-1", "run-1");
         run.closeOverlay();

@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.6
+
+- Interne Antwort-Metadaten (`ChatTitle` und `ProjectContext`) werden weder im Assistant-Overlay
+  angezeigt noch an die serverseitige Sprachausgabe weitergereicht.
+
 ## 1.0.5
 
 - Gestreamte Antworten werden nicht mehr mit der Android-TTS-Engine gesprochen. Die App fordert

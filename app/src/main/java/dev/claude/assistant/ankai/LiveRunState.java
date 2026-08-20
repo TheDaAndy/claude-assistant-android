@@ -114,7 +114,7 @@ public final class LiveRunState implements LiveRunListener {
             replayedHistory.clear();
             if (messages != null) {
                 for (String message : messages) {
-                    String value = blankToNull(message);
+                    String value = blankToNull(AssistantOutputCleaner.clean(message));
                     if (value == null) continue;
                     if (text.length() > 0) text.append("\n\n");
                     text.append(value);
@@ -136,7 +136,7 @@ public final class LiveRunState implements LiveRunListener {
         LiveRunSnapshot changed = null;
         synchronized (this) {
             if ("assistant".equals(event.type)) {
-                String addition = blankToNull(event.text);
+                String addition = blankToNull(AssistantOutputCleaner.clean(event.text));
                 if (addition != null) {
                     if (!replayedHistory.isEmpty() && addition.equals(replayedHistory.get(0))) {
                         replayedHistory.remove(0);
