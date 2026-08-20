@@ -5,9 +5,10 @@
     <string name="hint_input">Nachricht eingeben…</string>
     <string name="btn_mic_desc">Spracheingabe</string>
     <string name="btn_send_desc">Senden</string>
+    <string name="btn_submit">Abschicken</string>
     <string name="status_thinking">Ankaï denkt nach…</string>
     <string name="status_ready">Wie kann ich dir helfen?</string>
-    <string name="status_recording">Aufnahme läuft – Mikrofon erneut tippen zum Senden.</string>
+    <string name="status_recording">Aufnahme läuft – zum Senden auf „Abschicken“ tippen.</string>
     <string name="status_uploading">Aufnahme wird sicher an Ankaï übergeben…</string>
     <string name="error_no_response">Fehler: Keine Antwort</string>
     <string name="error_microphone_permission">Mikrofonzugriff ist für die Sprachübergabe erforderlich.</string>

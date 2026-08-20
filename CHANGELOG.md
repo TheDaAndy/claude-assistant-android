@@ -2,6 +2,14 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.7
+
+- Tippen auf den abgedunkelten Bereich schliesst den Standard-Assistant und stoppt dabei wie
+  bisher die automatische Wiedergabe fuer den laufenden Chat.
+- Aufnahme und Texteingabe verwenden eine einzige kontextabhaengige Aktion: Im Leerlauf zeigt
+  sie das Mikrofon, waehrend einer Aufnahme oder bei eingegebenem Text „Abschicken“ samt
+  Sendesymbol. Der redundante separate Senden-Button wurde entfernt.
+
 ## 1.0.6
 
 - Interne Antwort-Metadaten (`ChatTitle` und `ProjectContext`) werden weder im Assistant-Overlay

@@ -11,12 +11,15 @@ import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import dev.claude.assistant.ankai.VoiceSubmission;
+import dev.claude.assistant.ankai.AssistantInputPolicy;
 import dev.claude.assistant.ankai.TextSubmission;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.ankai.AnkaiProject;
@@ -41,8 +45,7 @@ public class AssistActivity extends Activity {
 
     private EditText inputField;
     private TextView responseView;
-    private ImageButton micButton;
-    private ImageButton sendButton;
+    private MaterialButton actionButton;
     private ProgressBar progressBar;
 
     private BroadcastReceiver responseReceiver;
@@ -66,15 +69,26 @@ public class AssistActivity extends Activity {
         );
 
         setContentView(R.layout.activity_assist);
+        setFinishOnTouchOutside(true);
+        findViewById(R.id.assist_scrim).setOnClickListener(v -> finish());
+        findViewById(R.id.assist_panel).setOnClickListener(v -> {
+            // Klicks innerhalb des Assistant-Panels duerfen die Activity nicht schliessen.
+        });
 
         inputField = findViewById(R.id.input_field);
         responseView = findViewById(R.id.response_view);
-        micButton = findViewById(R.id.mic_button);
-        sendButton = findViewById(R.id.send_button);
+        actionButton = findViewById(R.id.action_button);
         progressBar = findViewById(R.id.progress_bar);
 
-        micButton.setOnClickListener(v -> toggleRecording());
-        sendButton.setOnClickListener(v -> sendText());
+        actionButton.setOnClickListener(v -> performPrimaryAction());
+        inputField.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updatePrimaryAction();
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+        updatePrimaryAction();
 
         // Auto-start speech recognition when opened via gesture
         if (getIntent().getAction() != null &&
@@ -104,8 +118,13 @@ public class AssistActivity extends Activity {
         }
     }
 
-    private void toggleRecording() {
-        if (recording) {
+    private void performPrimaryAction() {
+        if (AssistantInputPolicy.action(recording, inputField.getText().toString())
+                == AssistantInputPolicy.Action.SUBMIT) {
+            if (!recording) {
+                sendText();
+                return;
+            }
             stopRecordingAndSubmit();
         } else {
             startRecordingWithPermission();
@@ -133,9 +152,9 @@ public class AssistActivity extends Activity {
             recorder.prepare();
             recorder.start();
             recording = true;
+            updatePrimaryAction();
             responseView.setText(getString(R.string.status_recording));
             inputField.setEnabled(false);
-            sendButton.setEnabled(false);
         } catch (IOException | RuntimeException error) {
             releaseRecorder();
             deleteRecording();
@@ -154,6 +173,7 @@ public class AssistActivity extends Activity {
         }
         releaseRecorder();
         recording = false;
+        updatePrimaryAction();
         setVoiceBusy(true);
         responseView.setText(getString(R.string.status_uploading));
         File file = recordingFile;
@@ -229,15 +249,26 @@ public class AssistActivity extends Activity {
 
     private void displayVoiceError(Throwable error) {
         recording = false;
+        updatePrimaryAction();
         setVoiceBusy(false);
         responseView.setText(VoiceUiFormatter.error(error));
     }
 
     private void setVoiceBusy(boolean busy) {
         progressBar.setVisibility(busy ? View.VISIBLE : View.GONE);
-        micButton.setEnabled(!busy);
-        sendButton.setEnabled(!busy);
+        actionButton.setEnabled(!busy);
         inputField.setEnabled(!busy);
+    }
+
+    private void updatePrimaryAction() {
+        if (actionButton == null || inputField == null) return;
+        boolean submit = AssistantInputPolicy.action(recording, inputField.getText().toString())
+                == AssistantInputPolicy.Action.SUBMIT;
+        actionButton.setIconResource(submit ? R.drawable.ic_send : R.drawable.ic_mic);
+        if (submit) actionButton.setText(R.string.btn_submit);
+        else actionButton.setText("");
+        actionButton.setContentDescription(getString(
+                submit ? R.string.btn_submit : R.string.btn_mic_desc));
     }
 
     private void releaseRecorder() {
@@ -269,8 +300,7 @@ public class AssistActivity extends Activity {
 
         progressBar.setVisibility(View.VISIBLE);
         responseView.setText(getString(R.string.status_thinking));
-        micButton.setEnabled(false);
-        sendButton.setEnabled(false);
+        actionButton.setEnabled(false);
 
         inputField.setEnabled(false);
         voiceExecutor.execute(() -> {
@@ -291,8 +321,7 @@ public class AssistActivity extends Activity {
     private void displayResponse(String response, int exitCode) {
         runOnUiThread(() -> {
             progressBar.setVisibility(View.GONE);
-            micButton.setEnabled(true);
-            sendButton.setEnabled(true);
+            actionButton.setEnabled(true);
 
             if (exitCode == 0 && response != null && !response.isEmpty()) {
                 responseView.setText(response);
