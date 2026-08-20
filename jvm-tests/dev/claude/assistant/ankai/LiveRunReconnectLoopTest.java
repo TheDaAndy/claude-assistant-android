@@ -25,6 +25,46 @@ public final class LiveRunReconnectLoopTest {
         Assert.eq(List.of(1_000L), delays);
     }
 
+    public void testRetriesBrieflyInactiveNewRunUntilAssistantStreamAppears() throws Exception {
+        LiveRunCoordinator coordinator = coordinatorWith("session-starting");
+        AtomicInteger opens = new AtomicInteger();
+        List<Long> delays = new ArrayList<>();
+        LiveRunReconnectLoop loop = new LiveRunReconnectLoop(coordinator, delay -> {
+            delays.add(delay);
+            return true;
+        });
+
+        loop.run("session-starting", (sessionId, listener) -> {
+            if (opens.incrementAndGet() == 1) return false;
+            listener.onEvent(new LiveRunEvent("assistant", "Jetzt sichtbar"));
+            listener.onEvent(new LiveRunEvent("done", null));
+            return false;
+        });
+
+        Assert.eq(2, opens.get());
+        Assert.eq(List.of(1_000L), delays);
+        Assert.eq("Jetzt sichtbar", coordinator.registry().get("session-starting").text());
+        Assert.isTrue("Lauf ist abgeschlossen", coordinator.registry().get("session-starting").isDone());
+    }
+
+    public void testStopsAfterBoundedInactiveStartupRetries() {
+        LiveRunCoordinator coordinator = coordinatorWith("session-never-starts");
+        AtomicInteger opens = new AtomicInteger();
+        List<Long> delays = new ArrayList<>();
+        LiveRunReconnectLoop loop = new LiveRunReconnectLoop(coordinator, delay -> {
+            delays.add(delay);
+            return true;
+        });
+
+        loop.run("session-never-starts", (sessionId, listener) -> {
+            opens.incrementAndGet();
+            return false;
+        });
+
+        Assert.eq(3, opens.get());
+        Assert.eq(List.of(1_000L, 2_000L), delays);
+    }
+
     public void testRetriesIOExceptionWithCappedExponentialBackoff() throws Exception {
         LiveRunCoordinator coordinator = coordinatorWith("session-2");
         AtomicInteger opens = new AtomicInteger();

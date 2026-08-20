@@ -9,6 +9,7 @@ import java.io.IOException;
 public final class LiveRunReconnectLoop {
     private static final long INITIAL_DELAY_MS = 1_000L;
     private static final long MAX_DELAY_MS = 30_000L;
+    private static final int MAX_STARTING_INACTIVE_RETRIES = 3;
 
     private final LiveRunCoordinator coordinator;
     private final RetryWaiter waiter;
@@ -27,9 +28,16 @@ public final class LiveRunReconnectLoop {
     public void run(String sessionId, LiveRunCoordinator.HistoryLoader history,
                     LiveRunCoordinator.LiveStream stream) {
         int retry = 0;
+        int startingInactiveRetries = 0;
         while (shouldReconnect(sessionId)) {
             try {
-                if (!coordinator.reconnect(sessionId, history, stream)) return;
+                boolean active = coordinator.reconnect(sessionId, history, stream);
+                if (!active) {
+                    if (!shouldReconnect(sessionId)) return;
+                    if (++startingInactiveRetries >= MAX_STARTING_INACTIVE_RETRIES) return;
+                } else {
+                    startingInactiveRetries = 0;
+                }
             } catch (AnkaiAuthException expiredConnection) {
                 return;
             } catch (IOException transportFailure) {

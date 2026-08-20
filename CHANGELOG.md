@@ -46,6 +46,9 @@ Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 ## [Unreleased]
 
 ### Behoben
+- Direkt nach dem Voice-Start kurzzeitig inaktive Live-Endpunkte werden begrenzt erneut abgefragt,
+  damit der Assistant den Lauf nicht vor dessen serverseitiger Registrierung verliert und Antworten
+  wieder sichtbar sowie fuer Server-TTS verfuegbar werden.
 - Wenn ein Hersteller den Android-Assistenten-Rollendialog ohne sichtbare Auswahl schliesst,
   oeffnet der Setup-Button nun automatisch die sichtbare Seite fuer Standard-Apps. Der bisherige
   Fallback auf die unpassenden Spracheingabe-Einstellungen wurde entsprechend ersetzt.
