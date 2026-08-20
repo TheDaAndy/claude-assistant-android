@@ -2,6 +2,13 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.0.3
+
+- Der als Android-Standard-Assistent gestartete Homebutton-Dialog zeigt nun die gestreamten
+  KI-Antworten und liest neue Antwortsegmente entsprechend der Autoplay-Einstellung vor.
+- Beim Schliessen dieses Dialogs wird die Sprachausgabe des Laufs dauerhaft gesperrt, waehrend
+  der Ankaï-Lauf wie vorgesehen im Hintergrund weiterarbeitet.
+
 ## 1.0.2
 
 - App, Quick-Settings-Tile, Status- und Benachrichtigungstexte in „Ankaï Assistant“ umbenannt.

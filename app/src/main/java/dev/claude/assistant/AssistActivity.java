@@ -29,6 +29,11 @@ import dev.claude.assistant.ankai.TextSubmission;
 import dev.claude.assistant.ankai.VoiceUiFormatter;
 import dev.claude.assistant.ankai.AnkaiProject;
 import dev.claude.assistant.ankai.AnkaiRoutingException;
+import dev.claude.assistant.ankai.LiveRunSnapshot;
+import dev.claude.assistant.ankai.LiveRunSpeechController;
+import dev.claude.assistant.ankai.LiveRunState;
+import dev.claude.assistant.ankai.LiveRunSubscription;
+import dev.claude.assistant.ankai.PlaybackSettings;
 import dev.claude.assistant.storage.EncryptedPrefsSecretStore;
 
 public class AssistActivity extends Activity {
@@ -45,6 +50,10 @@ public class AssistActivity extends Activity {
     private MediaRecorder recorder;
     private File recordingFile;
     private boolean recording;
+    private LiveRunState observedRun;
+    private LiveRunSubscription liveRunSubscription;
+    private LiveRunSpeechController speechController;
+    private AndroidSpeechPlayback speechPlayback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -176,7 +185,7 @@ public class AssistActivity extends Activity {
             startLiveRunService();
             runOnUiThread(() -> {
                 setVoiceBusy(false);
-                responseView.setText(VoiceUiFormatter.result(result));
+                observeLatestRun();
             });
         } catch (AnkaiRoutingException error) {
             runOnUiThread(() -> showProjectCandidates(error, filename, audio));
@@ -271,7 +280,7 @@ public class AssistActivity extends Activity {
                 startLiveRunService();
                 runOnUiThread(() -> {
                     setVoiceBusy(false);
-                    responseView.setText(getString(R.string.status_thinking));
+                    observeLatestRun();
                 });
             } catch (Throwable error) {
                 runOnUiThread(() -> displayVoiceError(error));
@@ -294,8 +303,42 @@ public class AssistActivity extends Activity {
         });
     }
 
+    private void observeLatestRun() {
+        closeLiveRunUi(false);
+        observedRun = LiveRunRuntime.coordinator(getApplicationContext()).registry().latest();
+        if (observedRun == null) return;
+        observedRun.attachOverlay();
+        liveRunSubscription = observedRun.observe(this::displayLiveRun);
+        PlaybackSettings playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
+        if (playbackSettings.isAutoplayEnabled()) {
+            speechPlayback = new AndroidSpeechPlayback(getApplicationContext(), playbackSettings);
+            speechController = new LiveRunSpeechController(observedRun, speechPlayback);
+        }
+    }
+
+    private void displayLiveRun(LiveRunSnapshot snapshot) {
+        runOnUiThread(() -> {
+            String text = snapshot.text();
+            responseView.setText(text == null || text.isEmpty()
+                    ? getString(R.string.status_thinking)
+                    : text);
+        });
+    }
+
+    private void closeLiveRunUi(boolean closeOverlay) {
+        if (liveRunSubscription != null) liveRunSubscription.close();
+        if (closeOverlay && observedRun != null) observedRun.closeOverlay();
+        if (speechController != null) speechController.close();
+        if (speechPlayback != null) speechPlayback.shutdown();
+        liveRunSubscription = null;
+        speechController = null;
+        speechPlayback = null;
+        observedRun = null;
+    }
+
     @Override
     protected void onDestroy() {
+        closeLiveRunUi(true);
         if (responseReceiver != null) {
             unregisterReceiver(responseReceiver);
         }
