@@ -111,7 +111,7 @@ public final class DeviceScopeActivity extends Activity {
         final JSONObject scope;
         try { scope=scope(); } catch(Exception e) {feedback.setText(e.getMessage());return;}
         new AlertDialog.Builder(this).setTitle(editing ? "Freigabe ändern?" : "Gerätezugriff freigeben?")
-                .setMessage(description()+"\n\nGeräteinfos und lesbare Einstellungen können abgerufen werden. Einstellungsseiten öffnest du erst nach Bestätigung am Handy."+(editing?"\nDer Kanal wird pausiert; offene Aktionen der alten Freigabe werden verworfen.":""))
+                .setMessage(description()+"\n\nGeräteinfos und lesbare Einstellungen können abgerufen werden. Einstellungsseiten öffnest du erst nach Bestätigung am Handy."+(store.maximumRequested()?" Maximalmodus: Dieser Freigabebereich erhält auch die freigegebenen ADB-/Shell-Rechte.":"")+(editing?"\nDer Kanal wird pausiert; offene Aktionen der alten Freigabe werden verworfen.":""))
                 .setNegativeButton("Abbrechen",null).setPositiveButton(editing?"Speichern":"Koppeln",(d,w)->submit(scope)).show();
     }
     private void submit(JSONObject scope) {

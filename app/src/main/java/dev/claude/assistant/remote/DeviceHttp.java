@@ -29,7 +29,7 @@ public final class DeviceHttp {
             throw new IOException("Gerätekopplung erfordert eine HTTPS-Instanz.");
         }
         HttpURLConnection c = (HttpURLConnection) new URL(base + path).openConnection(); active = c;
-        c.setInstanceFollowRedirects(false); c.setConnectTimeout(15000); c.setReadTimeout(65000);
+        c.setInstanceFollowRedirects(false); c.setConnectTimeout(15000); c.setReadTimeout("GET".equals(method) && path.endsWith("/commands") ? 65000 : 15000);
         c.setRequestMethod(method); c.setRequestProperty("Authorization", authorization); c.setRequestProperty("Accept", "application/json");
         try {
             if (body != null) {

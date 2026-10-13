@@ -20,11 +20,12 @@ public final class DeviceChannelService extends Service {
     private final DeviceHttp http = new DeviceHttp();
     private volatile boolean running;
     private DeviceLinkStore store;
+    private ShizukuBridge bridge;
     private final java.util.Set<Integer> actionNotifications = new java.util.HashSet<>();
     public static int notificationId(String id) { return 10000 + (id.hashCode() & 0x3fffffff); }
 
     @Override public void onCreate() {
-        super.onCreate(); store = new DeviceLinkStore(this);
+        super.onCreate(); store = new DeviceLinkStore(this); bridge=new ShizukuBridge(this);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL, "Ankaï-Gerätezugriff", NotificationManager.IMPORTANCE_LOW));
     }
@@ -48,17 +49,16 @@ public final class DeviceChannelService extends Service {
         int failures = 0;
         while (running && store.enabled()) {
             try {
+                int uid=ShizukuBridge.privilegeUid();
+                JSONObject capabilities=new JSONObject().put("sequence",store.nextControlSequence()).put("enabled",store.enabled() && store.maximumGranted(uid)).put("ready",ShizukuBridge.authorized())
+                        .put("uid",uid==0||uid==2000?uid:JSONObject.NULL);
+                JSONObject capabilityResponse=http.channel(store,"/capabilities","POST",capabilities);
+                JSONObject capabilityDevice=capabilityResponse.optJSONObject("device");
+                if(capabilityDevice!=null)applyDevice(capabilityDevice);
                 store.status("Verbunden · wartet auf Aktionen");
                 JSONObject response = http.channel(store, "/commands", "GET", null);
                 JSONObject device = response.optJSONObject("device");
-                if (device != null && device.optLong("scopeRevision",0) != store.scopeRevision()) {
-                    synchronized(actionNotifications) {
-                        for(int notificationId:actionNotifications)getSystemService(NotificationManager.class).cancel(notificationId);
-                        actionNotifications.clear();
-                    }
-                    store.updateDevice(device);
-                    getSystemService(NotificationManager.class).notify(2801,foregroundNotification());
-                }
+                if(device!=null)applyDevice(device);
                 JSONObject command = response.optJSONObject("command");
                 failures = 0;
                 if (!running || !store.enabled()) break;
@@ -84,6 +84,15 @@ public final class DeviceChannelService extends Service {
         }
         stopSelf();
     }
+    private void applyDevice(JSONObject device) throws Exception {
+        if(device.optLong("scopeRevision",0)==store.scopeRevision())return;
+        synchronized(actionNotifications) {
+            for(int notificationId:actionNotifications)getSystemService(NotificationManager.class).cancel(notificationId);
+            actionNotifications.clear();
+        }
+        store.updateDevice(device);
+        if(running)getSystemService(NotificationManager.class).notify(2801,foregroundNotification());
+    }
     private boolean backoff(int failures) {
         store.status("Offline · Wiederverbindung mit Wartezeit");
         try { TimeUnit.SECONDS.sleep(DeviceCommandPolicy.retrySeconds(failures)); return running && store.enabled(); }
@@ -95,6 +104,17 @@ public final class DeviceChannelService extends Service {
                 || !DeviceCommandPolicy.allowed(action, target, c.optLong("expiresAt"), System.currentTimeMillis()))
             return new JSONObject().put("status", "error").put("data", "Unzulässige oder abgelaufene Aktion");
         JSONObject data = new JSONObject();
+        if("remote_shell".equals(action)) {
+            int uid=ShizukuBridge.privilegeUid();
+            if(!store.maximumGranted(uid)||!ShizukuBridge.authorized())return new JSONObject().put("status","error").put("data","Maximalfreigabe/Shizuku auf dem Handy nicht aktiv.");
+            String command=c.getString("command");int timeout=c.optInt("timeoutSeconds",15);
+            dev.claude.assistant.ankai.PrivilegedCommandPolicy.validate(command,timeout);
+            // Durable uncertainty marker is written before any privileged side effect.
+            store.cacheResult(c.getString("id"),new JSONObject().put("status","error").put("data","Befehlsausführung unterbrochen; Ergebnis unbekannt. Nicht automatisch wiederholen."));
+            if(!running||!store.enabled())return new JSONObject().put("status","error").put("data","Kanal pausiert.");
+            try {return bridge.execute(command,timeout);}
+            catch(Exception unavailable){return new JSONObject().put("status","error").put("data","Shizuku-Ausführung fehlgeschlagen; Ergebnis unbekannt. Nicht automatisch wiederholen.");}
+        }
         if ("device_info".equals(action)) {
             data.put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)
                     .put("androidVersion", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT)
@@ -109,7 +129,8 @@ public final class DeviceChannelService extends Service {
                     .put("notificationsEnabled", getSystemService(NotificationManager.class).areNotificationsEnabled())
                     .put("airplaneMode", Settings.Global.getInt(getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, 0) == 1)
                     .put("automaticTime", Settings.Global.getInt(getContentResolver(), Settings.Global.AUTO_TIME, 0) == 1)
-                    .put("adbAvailable", false).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
+                    .put("adbAvailable",ShizukuBridge.authorized()).put("shizukuRunning",ShizukuBridge.running())
+                    .put("maximumRequested",store.maximumRequested()).put("remoteShellEnabled",store.maximumGranted(ShizukuBridge.privilegeUid()) && ShizukuBridge.authorized()).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
         } else {
             if (!getSystemService(NotificationManager.class).areNotificationsEnabled())
                 return new JSONObject().put("status", "error").put("data", "Benachrichtigungen deaktiviert");
@@ -129,7 +150,11 @@ public final class DeviceChannelService extends Service {
         return new JSONObject().put("status", "ok").put("data", data);
     }
     @Override public void onDestroy() {
-        running = false; http.cancel(); worker.shutdownNow();
+        running = false; http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
+        if(store!=null && store.id()!=null) {
+            final long disabledSequence=store.nextControlSequence();
+            new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL));}catch(Exception ignored){}},"device-disable-report").start();
+        }
         synchronized (actionNotifications) { for (int id : actionNotifications) getSystemService(NotificationManager.class).cancel(id); }
         if (store != null) { store.enabled(false); if (!store.status().startsWith("Kopplung widerrufen")) store.status("Pausiert · in der App wieder aktivieren"); }
         stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy();

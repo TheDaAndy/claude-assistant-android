@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.3.0
+
+- Optionaler Maximalmodus über Shizuku mit tatsächlichen ADB-/Shell- oder Root-Rechten; einmalige Zustimmung am Handy gebunden an die Rechtestufe.
+- Bestehende Global-/Nutzer-/Projekt-/Chatfreigaben gelten auch für privilegierte Befehle. Kein Geräte-Token im KI-Prompt.
+- Zeit-/Ausgabelimits, keine automatische Wiederholung privilegierter Aktionen, Abbruch beim Pausieren/Entzug. Shizuku-Einrichtungsseite mit WLAN-Debugging-Anleitung.
+
 ## 1.0.10
 
 - Die wirkungslose Auswahl fuer Android-TTS-Engine, Stimme, Vorschau und Sprechgeschwindigkeit

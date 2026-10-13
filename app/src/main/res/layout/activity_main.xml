@@ -133,10 +133,11 @@
         <TextView android:id="@+id/device_status" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Nicht gekoppelt" android:textColor="@color/text_secondary" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Freigabe wie Secrets: global, für deinen Nutzer, für mehrere Projekte oder einen Chat. Einstellungsseiten öffnen sich erst nach deiner Bestätigung am Handy. ADB, App-Installation und systemweite Logs sind noch nicht verbunden."
+            android:text="Freigabe wie Secrets: global, für deinen Nutzer, für mehrere Projekte oder einen Chat. Einstellungsseiten öffnen sich erst nach deiner Bestätigung am Handy. Mit Shizuku kannst du zusätzlich den Maximalmodus mit ADB-/Shell-Rechten einrichten."
             android:textColor="@color/text_secondary" android:layout_marginTop="8dp" />
         <Button android:id="@+id/device_pair" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerät koppeln und Freigabe wählen" />
         <Button android:id="@+id/device_scope" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerätefreigabe ändern" android:visibility="gone" />
+        <Button android:id="@+id/device_maximum" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Maximale Freigabe einrichten" android:visibility="gone" />
         <Switch android:textColor="@color/text_primary" android:id="@+id/device_enabled" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Gerätezugriff im Hintergrund aktiv" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"

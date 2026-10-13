@@ -9,6 +9,7 @@ import dev.claude.assistant.remote.DeviceLinkStore;
 import dev.claude.assistant.remote.DeviceHttp;
 import dev.claude.assistant.remote.DeviceChannelService;
 import dev.claude.assistant.remote.DeviceScopeActivity;
+import dev.claude.assistant.remote.MaximumControlActivity;
 import org.json.JSONObject;
 import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
@@ -75,6 +76,7 @@ public class MainActivity extends Activity {
         devicePair.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
         deviceScope=findViewById(R.id.device_scope);
         deviceScope.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
+        findViewById(R.id.device_maximum).setOnClickListener(v -> startActivity(new Intent(this,MaximumControlActivity.class)));
         deviceRevoke.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Gerätekopplung widerrufen?")
                 .setMessage("Alle bisherigen Freigaben verlieren den Gerätezugriff. Der Kanal wird sofort pausiert.")
                 .setNegativeButton("Abbrechen", null).setPositiveButton("Widerrufen", (d,w) -> revokeDevice()).show());
@@ -273,6 +275,7 @@ public class MainActivity extends Activity {
         deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.scopeLabel() + "\n" + deviceStore.status() : "Nicht gekoppelt · Freigabe unabhängig vom Sprach-Standardprojekt");
         devicePair.setEnabled(!deviceBusy && !paired && connection != null);
         devicePair.setVisibility(paired ? View.GONE : View.VISIBLE);
+        findViewById(R.id.device_maximum).setVisibility(paired?View.VISIBLE:View.GONE);
         deviceScope.setVisibility(paired ? View.VISIBLE : View.GONE);
         deviceScope.setEnabled(!deviceBusy);
         deviceRevoke.setVisibility(paired ? View.VISIBLE : View.GONE);
