@@ -8,6 +8,7 @@ import dev.claude.assistant.ankai.AnkaiConnection;
 import dev.claude.assistant.remote.DeviceLinkStore;
 import dev.claude.assistant.remote.DeviceHttp;
 import dev.claude.assistant.remote.DeviceChannelService;
+import dev.claude.assistant.remote.DeviceScopeActivity;
 import org.json.JSONObject;
 import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
@@ -54,7 +55,7 @@ public class MainActivity extends Activity {
     private Button defaultAssistantButton;
     private PlaybackSettings playbackSettings;
     private DeviceLinkStore deviceStore;
-    private Button devicePair, deviceRevoke;
+    private Button devicePair, deviceRevoke, deviceScope;
     private Switch deviceEnabled;
     private TextView deviceStatus;
     private boolean renderingDevice;
@@ -71,9 +72,11 @@ public class MainActivity extends Activity {
         deviceRevoke = findViewById(R.id.device_revoke);
         deviceEnabled = findViewById(R.id.device_enabled);
         deviceStatus = findViewById(R.id.device_status);
-        devicePair.setOnClickListener(v -> pairDevice());
+        devicePair.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
+        deviceScope=findViewById(R.id.device_scope);
+        deviceScope.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
         deviceRevoke.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Gerätekopplung widerrufen?")
-                .setMessage("Das freigegebene Projekt verliert den Gerätezugriff. Der Kanal wird sofort pausiert.")
+                .setMessage("Alle bisherigen Freigaben verlieren den Gerätezugriff. Der Kanal wird sofort pausiert.")
                 .setNegativeButton("Abbrechen", null).setPositiveButton("Widerrufen", (d,w) -> revokeDevice()).show());
         deviceEnabled.setOnCheckedChangeListener((v, enabled) -> {
             if (renderingDevice) return;
@@ -267,35 +270,16 @@ public class MainActivity extends Activity {
         renderingDevice = true;
         boolean paired = deviceStore.id() != null;
         AnkaiConnection connection = EncryptedPrefsSecretStore.connectionStore(this).load();
-        deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.projectName() + "\n" + deviceStore.status() : "Nicht gekoppelt · zuerst anmelden und ein Projekt wählen");
-        devicePair.setEnabled(!deviceBusy && !paired && connection != null && connection.defaultProjectId != null);
+        deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.scopeLabel() + "\n" + deviceStore.status() : "Nicht gekoppelt · Freigabe unabhängig vom Sprach-Standardprojekt");
+        devicePair.setEnabled(!deviceBusy && !paired && connection != null);
         devicePair.setVisibility(paired ? View.GONE : View.VISIBLE);
+        deviceScope.setVisibility(paired ? View.VISIBLE : View.GONE);
+        deviceScope.setEnabled(!deviceBusy);
         deviceRevoke.setVisibility(paired ? View.VISIBLE : View.GONE);
         deviceRevoke.setEnabled(!deviceBusy);
         deviceEnabled.setEnabled(!deviceBusy && paired);
         deviceEnabled.setChecked(paired && deviceStore.enabled());
         renderingDevice = false;
-    }
-
-    private void pairDevice() {
-        AnkaiConnection connection = EncryptedPrefsSecretStore.connectionStore(this).load();
-        if (connection == null || connection.defaultProjectId == null) return;
-        new AlertDialog.Builder(this).setTitle("Gerätezugriff freigeben?")
-                .setMessage("Projekt: " + connection.defaultProjectName + "\nGeräteinfos und lesbare Einstellungen können abgerufen werden. Einstellungsseiten erfordern eine Bestätigung am Handy. Du kannst jederzeit pausieren oder widerrufen.")
-                .setNegativeButton("Abbrechen", null).setPositiveButton("Koppeln", (d,w) -> {
-                    deviceBusy = true; renderDevice();
-                    networkExecutor.execute(() -> {
-                        String error = null;
-                        try {
-                            JSONObject response = new DeviceHttp().account(connection, "/api/devices", "POST", new JSONObject()
-                                    .put("name", Build.MANUFACTURER + " " + Build.MODEL).put("projectId", connection.defaultProjectId));
-                            deviceStore.save(response.getJSONObject("device").getString("id"), response.getString("token"), connection.baseUrl,
-                                    connection.defaultProjectName == null ? connection.defaultProjectId : connection.defaultProjectName);
-                        } catch (Exception e) { error = "Kopplung fehlgeschlagen: " + e.getMessage() + " · Der Gerätekanal muss auf dieser Instanz verfügbar sein."; }
-                        final String message = error;
-                        runOnUiThread(() -> { deviceBusy = false; if (!isDestroyed()) { renderDevice(); connectionError.setText(message == null ? "" : message); connectionError.setVisibility(message == null ? View.GONE : View.VISIBLE); } });
-                    });
-                }).show();
     }
 
     private void revokeDevice() {

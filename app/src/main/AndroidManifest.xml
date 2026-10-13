@@ -81,6 +81,7 @@
                 android:value="ai_assistant" />
         </service>
 
+        <activity android:name=".remote.DeviceScopeActivity" android:exported="false" />
         <activity android:name=".remote.DeviceActionActivity" android:exported="false" />
         <service android:name=".remote.DeviceChannelService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled paired device diagnostics and locally confirmed settings requests" />

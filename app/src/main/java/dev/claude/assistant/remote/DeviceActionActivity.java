@@ -13,13 +13,14 @@ public final class DeviceActionActivity extends Activity {
         super.onCreate(state);
         String target = getIntent().getStringExtra("target");
         DeviceLinkStore store = new DeviceLinkStore(this);
+        long revision=getIntent().getLongExtra("scopeRevision",0);
         long expires = getIntent().getLongExtra("expiresAt", 0);
-        if (!store.enabled() || !DeviceCommandPolicy.allowed("open_settings", target, expires, System.currentTimeMillis())) { finish(); return; }
+        if (!store.enabled() || !DeviceCommandPolicy.matchesGrant(revision,store.scopeRevision()) || !DeviceCommandPolicy.allowed("open_settings", target, expires, System.currentTimeMillis())) { finish(); return; }
         new AlertDialog.Builder(this).setTitle("Einstellungen öffnen?")
-                .setMessage("Ankaï-Projekt: " + store.projectName() + "\nSeite: " + target + "\nDie KI ändert keine Einstellung automatisch.")
+                .setMessage("Freigabe: " + store.scopeLabel() + "\nAngefragt von: "+getIntent().getStringExtra("requester")+"\nChat: "+getIntent().getStringExtra("chatTitle")+"\nSeite: " + target + "\nDie KI ändert keine Einstellung automatisch.")
                 .setNegativeButton("Ablehnen", (d, w) -> finish())
                 .setPositiveButton("Öffnen", (d, w) -> {
-                    if (store.enabled() && expires > System.currentTimeMillis()) {
+                    if (store.enabled() && DeviceCommandPolicy.matchesGrant(revision,store.scopeRevision()) && expires > System.currentTimeMillis()) {
                         String action = Settings.ACTION_SETTINGS;
                         if ("wifi".equals(target)) action = Settings.ACTION_WIFI_SETTINGS;
                         if ("accessibility".equals(target)) action = Settings.ACTION_ACCESSIBILITY_SETTINGS;

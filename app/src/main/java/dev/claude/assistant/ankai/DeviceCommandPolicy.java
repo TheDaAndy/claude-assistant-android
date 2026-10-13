@@ -8,6 +8,9 @@ public final class DeviceCommandPolicy {
         return "open_settings".equals(action) && ("general".equals(target) || "wifi".equals(target)
                 || "application".equals(target) || "accessibility".equals(target) || "developer".equals(target));
     }
+    public static boolean matchesGrant(long commandRevision, long currentRevision) {
+        return commandRevision >= 0 && commandRevision == currentRevision;
+    }
     public static int retrySeconds(int failures) {
         return Math.min(300, 5 << Math.min(6, Math.max(0, failures - 1)));
     }

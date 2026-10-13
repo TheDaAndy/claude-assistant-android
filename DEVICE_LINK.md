@@ -1,8 +1,19 @@
-# Ankaï-Gerätekopplung (1.1.0)
+# Ankaï-Gerätekopplung (1.2.0)
 
-Der Assistant bleibt erhalten. In der Hauptansicht: Ankaï anmelden, ein Default-Projekt wählen, „Mit ausgewähltem Projekt koppeln“ bestätigen und Gerätezugriff einschalten. Das gewählte Projekt ist die feste Freigabe dieser Kopplung; spätere Änderungen des Sprach-Default-Projekts ändern sie nicht. Für ein anderes Projekt zuerst widerrufen und neu koppeln.
+Der Assistant bleibt erhalten. In der Hauptansicht: Ankaï anmelden und „Gerät koppeln und Freigabe wählen“ öffnen. Dafür ist KEIN Sprach-Standardprojekt erforderlich. Gerätefreigabe und Sprach-Routing sind vollständig getrennt.
 
-Der Server benötigt die neuen Geräterouten (Ankaï dev, noch kein Produktionsrelease). Normale Installationen benötigen HTTPS; ausschließlich Debug-Builds erlauben zusätzlich HTTP für 127.0.0.1 und den Android-Emulatorhost 10.0.2.2. Keine unverschlüsselten Tokens im öffentlichen Netz. Geräte-Token und Ergebnis-Deduplizierung liegen in EncryptedSharedPreferences/Keystore, Android-Backup ist deaktiviert. Der Token berechtigt ausschließlich zum eigenen Gerätekanal und kann keine Account-API nutzen.
+## Freigaben wie bei Secrets
+
+- **Global:** alle angemeldeten Nutzer dieser Instanz aus allen Chats, Prompts und Automationen, inklusive projektloser Runs. Eine globale Gerätefreigabe gilt unabhängig von der Berechtigung, globale Secret-Werte zu lesen; der Gerätebesitzer erteilt sie ausdrücklich für sein eigenes Gerät.
+- **Mein Nutzer:** alle Prompts und Automationen, die unter dem angemeldeten Nutzer laufen, inklusive projektloser Runs. Maßgeblich ist die Identität des ausführenden Runs, nicht der Projektersteller.
+- **Ausgewählte Projekte:** ein bis 50 explizit ausgewählte Projekte und deren aktuell berechtigte Nutzer. Kinderprojekte werden nicht automatisch eingeschlossen.
+- **Ein bestimmter Chat:** genau dieser Chat und seine weiteren Runs; normale Chat-/Projektzugriffsrechte werden weiterhin geprüft.
+
+Mehrere passende Geräte werden gemeinsam aufgelistet. Ein Gerät hat jeweils einen dieser Freigabebereiche. „Gerätefreigabe ändern“ erlaubt spätere Änderungen ohne neue Kopplung. Beim Speichern pausiert die App den Kanal; offene alte Aktionen werden verworfen. Danach manuell aktivieren. Verwaltung und Token bleiben ausschließlich beim Gerätebesitzer; Freigabe bedeutet Benutzung, nicht Verwaltung. Ergebnisse/Deduplizierung sind pro anfragendem Nutzer und Chat isoliert.
+
+Bestehende Kopplungen aus 1.1.0 bleiben auf den ursprünglichen Nutzer und das ursprüngliche Projekt beschränkt. Keine automatische Ausweitung auf Projektmitglieder, Nutzer oder global. Erst ausdrückliches Speichern der neuen Freigabe ändert das.
+
+Der Server benötigt Ankaï 0.63.0 oder die erweiterten Geräterouten auf dev. Normale Installationen benötigen HTTPS; ausschließlich Debug-Builds erlauben zusätzlich HTTP für 127.0.0.1 und den Android-Emulatorhost 10.0.2.2. Keine unverschlüsselten Tokens im öffentlichen Netz. Geräte-Token und Ergebnis-Deduplizierung liegen in EncryptedSharedPreferences/Keystore, Android-Backup ist deaktiviert. Die KI erhält eine berechtigte Capability über die Run-API; der Kopplungstoken wird niemals als Secret in einen Prompt oder die Agent-Umgebung übernommen.
 
 ## Erste Aktionen
 
@@ -14,9 +25,9 @@ Aktiv ist eine sichtbare Foreground-Service-Benachrichtigung mit „Pausieren“
 
 ## KI-Zugriff
 
-Run-Authentifizierung wie bei der übrigen Ankaï-Run-API. `GET /api/run/devices` liefert nur eigene, ausdrücklich für das aktuelle Projekt gekoppelte Geräte. Ein Battleships-Chat benötigt eine Kopplung mit dem Battleships-Projekt. `GET /api/run/context` dokumentiert den Vertrag.
+Run-Authentifizierung wie bei der übrigen Ankaï-Run-API. `GET /api/run/devices` liefert die gemäß Global-/Nutzer-/Projekt-/Chatfreigabe verfügbaren Geräte, auch in projektlosen Runs. Ein Battleships-Chat kann eine globale oder Nutzerfreigabe verwenden; eine Projektfreigabe muss Battleships ausdrücklich enthalten. `GET /api/run/context` dokumentiert den Vertrag.
 
-`POST /api/run/devices/:deviceId/commands` mit `{ "action": "device_info", "clientRequestId": "unique_request_123" }` liefert die Command-ID. Für `open_settings` zusätzlich `target`. Idempotente Request-ID bei Retries wiederverwenden. Ergebnis über `GET /api/run/devices/:deviceId/commands/:commandId` lesen. Maximal zehn offene Aktionen, Ablauf nach zwei Minuten, 30-Sekunden-Lease, Ergebnisse maximal 16 KiB; Historie bei Kanal-/Befehlsaktivität auf 24 Stunden/100 Einträge gekürzt. Eigentümer kann Kopplungen über `GET/DELETE /api/devices/:deviceId` verwalten. Gerät nutzt separat `/api/device-channel/:deviceId/commands` und den Result-Endpunkt; Widerruf sofort wirksam.
+`POST /api/run/devices/:deviceId/commands` mit `{ "action": "device_info", "clientRequestId": "unique_request_123" }` liefert die Command-ID. Für `open_settings` zusätzlich `target`. Idempotente Request-ID bei Retries wiederverwenden. Ergebnis über `GET /api/run/devices/:deviceId/commands/:commandId` lesen. Maximal zehn offene Aktionen, Ablauf nach zwei Minuten, 30-Sekunden-Lease, Ergebnisse maximal 16 KiB; Historie bei Kanal-/Befehlsaktivität auf 24 Stunden/100 Einträge gekürzt. Eigentümer verwaltet Kopplungen über `GET /api/devices`, `DELETE /api/devices/:deviceId` und `PATCH /api/devices/:deviceId/scope` mit `{scope:{type:"global"|"user"|"projects"|"chat",projectIds?:[],sessionId?:""}}`. Zugriffsgeprüfte, suchbare Auswahl: `GET /api/devices/scope-options?kind=projects|chats&q=...` (100 Treffer, hasMore). Gerät nutzt separat `/api/device-channel/:deviceId/commands` und den Result-Endpunkt; Widerruf sofort wirksam.
 
 ## Nächste Rechte-Stufe
 

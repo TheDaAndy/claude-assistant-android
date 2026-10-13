@@ -32,21 +32,34 @@ public final class DeviceChannelService extends Service {
         if (intent != null && STOP.equals(intent.getAction())) { store.enabled(false); stopSelf(); return START_NOT_STICKY; }
         if (running) return START_NOT_STICKY;
         if (store.id() == null || !store.enabled()) { stopSelf(); return START_NOT_STICKY; }
-        PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
-        PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, DeviceChannelService.class).setAction(STOP), PendingIntent.FLAG_IMMUTABLE);
-        Notification n = new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_assistant)
-                .setContentTitle("Ankaï-Gerätezugriff aktiv").setContentText("Freigegeben: " + store.projectName())
-                .setContentIntent(open).setOngoing(true).addAction(new Notification.Action.Builder(null, "Pausieren", stop).build()).build();
+        Notification n = foregroundNotification();
         if (Build.VERSION.SDK_INT >= 34) startForeground(2801, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(2801, n);
         running = true; worker.execute(this::loop); return START_NOT_STICKY;
+    }
+    private Notification foregroundNotification() {
+        PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, DeviceChannelService.class).setAction(STOP), PendingIntent.FLAG_IMMUTABLE);
+        return new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_assistant)
+                .setContentTitle("Ankaï-Gerätezugriff aktiv").setContentText("Freigabe: " + store.scopeLabel())
+                .setContentIntent(open).setOngoing(true).addAction(new Notification.Action.Builder(null, "Pausieren", stop).build()).build();
     }
     private void loop() {
         int failures = 0;
         while (running && store.enabled()) {
             try {
                 store.status("Verbunden · wartet auf Aktionen");
-                JSONObject command = http.channel(store, "/commands", "GET", null).optJSONObject("command");
+                JSONObject response = http.channel(store, "/commands", "GET", null);
+                JSONObject device = response.optJSONObject("device");
+                if (device != null && device.optLong("scopeRevision",0) != store.scopeRevision()) {
+                    synchronized(actionNotifications) {
+                        for(int notificationId:actionNotifications)getSystemService(NotificationManager.class).cancel(notificationId);
+                        actionNotifications.clear();
+                    }
+                    store.updateDevice(device);
+                    getSystemService(NotificationManager.class).notify(2801,foregroundNotification());
+                }
+                JSONObject command = response.optJSONObject("command");
                 failures = 0;
                 if (!running || !store.enabled()) break;
                 if (command == null) continue;
@@ -78,7 +91,8 @@ public final class DeviceChannelService extends Service {
     }
     private JSONObject execute(JSONObject c) throws Exception {
         String action = c.optString("action"); String target = c.optString("target");
-        if (!DeviceCommandPolicy.allowed(action, target, c.optLong("expiresAt"), System.currentTimeMillis()))
+        if (!DeviceCommandPolicy.matchesGrant(c.optLong("scopeRevision",0),store.scopeRevision())
+                || !DeviceCommandPolicy.allowed(action, target, c.optLong("expiresAt"), System.currentTimeMillis()))
             return new JSONObject().put("status", "error").put("data", "Unzulässige oder abgelaufene Aktion");
         JSONObject data = new JSONObject();
         if ("device_info".equals(action)) {
@@ -100,11 +114,13 @@ public final class DeviceChannelService extends Service {
             if (!getSystemService(NotificationManager.class).areNotificationsEnabled())
                 return new JSONObject().put("status", "error").put("data", "Benachrichtigungen deaktiviert");
             Intent intent = new Intent(this, DeviceActionActivity.class).setData(Uri.parse("ankai-device:" + c.getString("id")))
-                    .putExtra("target", target).putExtra("expiresAt", c.getLong("expiresAt"));
+                    .putExtra("target", target).putExtra("expiresAt", c.getLong("expiresAt"))
+                    .putExtra("scopeRevision",c.optLong("scopeRevision",0)).putExtra("requester",c.optString("requester"))
+                    .putExtra("chatTitle",c.optString("chatTitle",""));
             int nid = notificationId(c.getString("id"));
             PendingIntent confirm = PendingIntent.getActivity(this, nid, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             Notification n = new Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_assistant)
-                    .setContentTitle("Ankaï möchte Einstellungen öffnen").setContentText(store.projectName() + " · " + target + " · Antippen zum Prüfen")
+                    .setContentTitle("Ankaï möchte Einstellungen öffnen").setContentText(c.optString("requester") + " · " + target + " · Antippen zum Prüfen")
                     .setContentIntent(confirm).setAutoCancel(true).setTimeoutAfter(Math.max(1, c.getLong("expiresAt") - System.currentTimeMillis())).build();
             synchronized (actionNotifications) { actionNotifications.add(nid); }
             getSystemService(NotificationManager.class).notify(nid, n);
