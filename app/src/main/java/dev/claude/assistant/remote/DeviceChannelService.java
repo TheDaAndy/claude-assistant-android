@@ -30,7 +30,7 @@ public final class DeviceChannelService extends Service {
         manager.createNotificationChannel(new NotificationChannel(CHANNEL, "Ankaï-Gerätezugriff", NotificationManager.IMPORTANCE_LOW));
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && STOP.equals(intent.getAction())) { store.enabled(false); stopSelf(); return START_NOT_STICKY; }
+        if (intent != null && STOP.equals(intent.getAction())) { store.uiResume(false); store.enabled(false); stopSelf(); return START_NOT_STICKY; }
         if (running) return START_NOT_STICKY;
         if (store.id() == null || !store.enabled()) { stopSelf(); return START_NOT_STICKY; }
         Notification n = foregroundNotification();
@@ -51,7 +51,7 @@ public final class DeviceChannelService extends Service {
             try {
                 int uid=ShizukuBridge.privilegeUid();
                 JSONObject capabilities=new JSONObject().put("sequence",store.nextControlSequence()).put("enabled",store.enabled() && store.maximumGranted(uid)).put("ready",ShizukuBridge.authorized())
-                        .put("uid",uid==0||uid==2000?uid:JSONObject.NULL);
+                        .put("uid",uid==0||uid==2000?uid:JSONObject.NULL).put("uiEnabled",store.enabled()&&store.uiGranted()).put("uiReady",UiControlService.ready());
                 JSONObject capabilityResponse=http.channel(store,"/capabilities","POST",capabilities);
                 JSONObject capabilityDevice=capabilityResponse.optJSONObject("device");
                 if(capabilityDevice!=null)applyDevice(capabilityDevice);
@@ -69,14 +69,14 @@ public final class DeviceChannelService extends Service {
                     result = execute(command);
                     // Save before upload; retries do not repeat a user-facing action.
                     if (!running || !store.enabled()) break;
-                    store.cacheResult(id, result);
+                    store.cacheResult(id, "ui_screenshot".equals(command.optString("action"))?new JSONObject().put("status","error").put("data","Screenshot wird nicht dauerhaft auf dem Handy gespeichert; neu anfordern."):result);
                 }
                 if (!running || !store.enabled()) break;
                 http.channel(store, "/commands/" + id + "/result", "POST", result);
                 store.status("Letzte Aktion: " + command.optString("action"));
             } catch (DeviceHttp.Failure error) {
                 if (error.status == 401 || error.status == 404) {
-                    store.enabled(false); store.status("Kopplung widerrufen · neu koppeln"); break;
+                    store.uiResume(false); store.enabled(false); store.status("Kopplung widerrufen · neu koppeln"); break;
                 }
                 if (error.status == 409) continue; // An expired leased command is never executed again.
                 if (!backoff(++failures)) break;
@@ -103,6 +103,11 @@ public final class DeviceChannelService extends Service {
         if (!DeviceCommandPolicy.matchesGrant(c.optLong("scopeRevision",0),store.scopeRevision())
                 || !DeviceCommandPolicy.allowed(action, target, c.optLong("expiresAt"), System.currentTimeMillis()))
             return new JSONObject().put("status", "error").put("data", "Unzulässige oder abgelaufene Aktion");
+        if(action.startsWith("ui_")) {
+            if(!store.uiGranted()||!UiControlService.ready()||!running||!store.enabled())return new JSONObject().put("status","error").put("data","Bedienungshilfe nicht freigegeben/aktiv.");
+            store.cacheResult(c.getString("id"),new JSONObject().put("status","error").put("data","UI-Ausführung unterbrochen; Ergebnis unbekannt. Nicht automatisch wiederholen."));
+            return UiControlService.execute(action,c.optJSONObject("params")==null?new JSONObject():c.getJSONObject("params"));
+        }
         JSONObject data = new JSONObject();
         if("remote_shell".equals(action)) {
             int uid=ShizukuBridge.privilegeUid();
@@ -153,7 +158,7 @@ public final class DeviceChannelService extends Service {
         running = false; http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
         if(store!=null && store.id()!=null) {
             final long disabledSequence=store.nextControlSequence();
-            new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL));}catch(Exception ignored){}},"device-disable-report").start();
+            new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL).put("uiEnabled",false).put("uiReady",false));}catch(Exception ignored){}},"device-disable-report").start();
         }
         synchronized (actionNotifications) { for (int id : actionNotifications) getSystemService(NotificationManager.class).cancel(id); }
         if (store != null) { store.enabled(false); if (!store.status().startsWith("Kopplung widerrufen")) store.status("Pausiert · in der App wieder aktivieren"); }

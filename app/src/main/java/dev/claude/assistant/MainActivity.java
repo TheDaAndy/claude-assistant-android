@@ -77,6 +77,7 @@ public class MainActivity extends Activity {
         deviceScope=findViewById(R.id.device_scope);
         deviceScope.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
         findViewById(R.id.device_maximum).setOnClickListener(v -> startActivity(new Intent(this,MaximumControlActivity.class)));
+        findViewById(R.id.device_ui).setOnClickListener(v -> startActivity(new Intent(this,dev.claude.assistant.remote.UiControlActivity.class)));
         deviceRevoke.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Gerätekopplung widerrufen?")
                 .setMessage("Alle bisherigen Freigaben verlieren den Gerätezugriff. Der Kanal wird sofort pausiert.")
                 .setNegativeButton("Abbrechen", null).setPositiveButton("Widerrufen", (d,w) -> revokeDevice()).show());
@@ -86,6 +87,8 @@ public class MainActivity extends Activity {
                 if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1002);
                 deviceStore.status("Benachrichtigungen erlauben, danach erneut aktivieren"); renderDevice(); return;
             }
+            if(!enabled)deviceStore.uiResume(false);
+            deviceStore.status(enabled?"Verbinde Gerätekanal …":"Pausiert");
             deviceStore.enabled(enabled);
             if (enabled) startForegroundService(new Intent(this, DeviceChannelService.class));
             else stopService(new Intent(this, DeviceChannelService.class));
@@ -187,7 +190,7 @@ public class MainActivity extends Activity {
                 if (DeviceChannelService.class.getName().equals(service.service.getClassName())) active = true;
             }
             if (deviceStore.enabled() && !active) {
-                deviceStore.enabled(false); deviceStore.status("Pausiert · nach Prozessende wieder aktivieren");
+                deviceStore.uiResume(false); deviceStore.enabled(false); deviceStore.status("Pausiert · nach Prozessende wieder aktivieren");
             }
             renderDevice();
         }
@@ -275,6 +278,7 @@ public class MainActivity extends Activity {
         deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.scopeLabel() + "\n" + deviceStore.status() : "Nicht gekoppelt · Freigabe unabhängig vom Sprach-Standardprojekt");
         devicePair.setEnabled(!deviceBusy && !paired && connection != null);
         devicePair.setVisibility(paired ? View.GONE : View.VISIBLE);
+        findViewById(R.id.device_ui).setEnabled(paired&&!deviceBusy);
         findViewById(R.id.device_maximum).setVisibility(paired?View.VISIBLE:View.GONE);
         deviceScope.setVisibility(paired ? View.VISIBLE : View.GONE);
         deviceScope.setEnabled(!deviceBusy);
@@ -286,7 +290,7 @@ public class MainActivity extends Activity {
     }
 
     private void revokeDevice() {
-        deviceStore.enabled(false);
+        deviceStore.uiResume(false); deviceStore.enabled(false);
         stopService(new Intent(this, DeviceChannelService.class));
         deviceBusy = true; renderDevice();
         networkExecutor.execute(() -> {

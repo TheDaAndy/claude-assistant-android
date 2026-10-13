@@ -35,4 +35,5 @@
     <string name="floating_widget_run_done">Assistent öffnen, Ankaï-Antwort ist fertig</string>
     <string name="service_channel_name">Ankaï Assistant</string>
     <string name="service_channel_description">Ankaï Assistant läuft im Hintergrund</string>
+    <string name="device_accessibility_description">Erlaubt Ankaï nach separater Gerätefreigabe Bildschirmtexte und Screenshots zu lesen sowie Tippen, Wischen und Texteingaben auszuführen. Aktiv nur mit Gerätekanal; jederzeit in der App oder Android deaktivierbar. Keine Root-/ADB-Rechte.</string>
 </resources>

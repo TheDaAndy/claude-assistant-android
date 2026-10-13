@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.4.0
+
+- Rootlose Fernsteuerung über ausdrücklich aktivierte Android-Bedienungshilfe und separaten lokalen Ankaï-Grant.
+- Bildschirm lesen, Screenshot (Android11+), Tippen/Wischen/Text, Home/Zurück und App-Start ohne ADB/Shizuku.
+- Optionale Wiederaufnahme bei erneuter Android-Dienstbindung; Pause schaltet sie aus. Gesperrte/geschützte Ansichten und lokale Berechtigungs-/Installationsbestätigungen bleiben eingeschränkt.
+
 ## 1.3.0
 
 - Optionaler Maximalmodus über Shizuku mit tatsächlichen ADB-/Shell- oder Root-Rechten; einmalige Zustimmung am Handy gebunden an die Rechtestufe.

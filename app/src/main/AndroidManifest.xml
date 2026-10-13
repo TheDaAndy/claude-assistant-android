@@ -4,6 +4,7 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
@@ -29,6 +30,11 @@
             android:authorities="${applicationId}.shizuku" android:exported="true"
             android:multiprocess="false" android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
         <activity android:name=".remote.MaximumControlActivity" android:exported="false" />
+        <activity android:name=".remote.UiControlActivity" android:exported="false" />
+        <service android:name=".remote.UiControlService" android:exported="true" android:label="Ankaï-Gerätesteuerung" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/device_accessibility" />
+        </service>
         <!-- Main Activity (Launcher) -->
         <activity
             android:name=".MainActivity"

@@ -117,7 +117,7 @@ public final class DeviceScopeActivity extends Activity {
     private void submit(JSONObject scope) {
         busy=true;feedback.setText("Speichern …");render();
         // Pause before changing grant; do not silently reactivate the new permission.
-        if(editing) {store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));}
+        if(editing) {store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));}
         worker.execute(() -> {
             try {
                 JSONObject body=new JSONObject().put("scope",scope); JSONObject response;

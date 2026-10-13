@@ -45,7 +45,7 @@ public final class MaximumControlActivity extends Activity {
         Button done=new Button(this);done.setText("Zurück zur Kopplung");done.setOnClickListener(v->finish());l.addView(done);
         Shizuku.addBinderReceivedListenerSticky(received);Shizuku.addBinderDeadListener(dead);Shizuku.addRequestPermissionResultListener(result);refresh();
     }
-    private void pause(){store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));}
+    private void pause(){store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));}
     private void refresh(){
         if(status==null || isDestroyed())return;
         boolean running=ShizukuBridge.running(),authorized=ShizukuBridge.authorized();int uid=ShizukuBridge.privilegeUid();

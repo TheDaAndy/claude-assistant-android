@@ -42,7 +42,7 @@ public final class DeviceHttp {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try (InputStream in = c.getInputStream()) {
                 byte[] buffer = new byte[4096]; int count;
-                while ((count = in.read(buffer)) != -1) { if (out.size() + count > 65536) throw new IOException("Antwort zu groß"); out.write(buffer, 0, count); }
+                while ((count = in.read(buffer)) != -1) { if (out.size() + count > (path.endsWith("/result")?262144:65536)) throw new IOException("Antwort zu groß"); out.write(buffer, 0, count); }
             }
             return new JSONObject(out.toString("UTF-8"));
         } finally { c.disconnect(); if (active == c) active = null; }

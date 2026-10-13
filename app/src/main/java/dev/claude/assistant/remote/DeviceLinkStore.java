@@ -22,6 +22,10 @@ public final class DeviceLinkStore {
     }
     private static final Object CONTROL_LOCK=new Object();
     public long nextControlSequence(){synchronized(CONTROL_LOCK){long previous=0;try{previous=Long.parseLong(store.get("device.controlSequence"));}catch(Exception ignored){}long next=Math.max(System.currentTimeMillis(),previous+1);store.put("device.controlSequence",String.valueOf(next));return next;}}
+    public boolean uiGranted(){return "true".equals(store.get("device.uiGranted"));}
+    public void uiGranted(boolean value){store.put("device.uiGranted",String.valueOf(value));}
+    public boolean uiResume(){return "true".equals(store.get("device.uiResume"));}
+    public void uiResume(boolean value){store.put("device.uiResume",String.valueOf(value));}
     public boolean maximumRequested(){return "true".equals(store.get("device.maximum"));}
     public boolean maximumGranted(int uid){return maximumRequested() && String.valueOf(uid).equals(store.get("device.maximumUid"));}
     public void maximum(boolean value,int uid){store.put("device.maximum",String.valueOf(value));if(value)store.put("device.maximumUid",String.valueOf(uid));else store.remove("device.maximumUid");}
@@ -45,6 +49,6 @@ public final class DeviceLinkStore {
         results.put(id, result); store.put("device.results", results.toString());
     }
     public void clear() {
-        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence"}) store.remove("device." + key);
+        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume"}) store.remove("device." + key);
     }
 }
