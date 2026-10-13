@@ -15,6 +15,7 @@ javac -d "$OUT" \
   "$ROOT"/jvm-tests/dev/claude/assistant/ankai/*.java
 
 java -cp "$OUT" TestRunner \
+  dev.claude.assistant.ankai.DeviceCommandPolicyTest \
   dev.claude.assistant.ankai.AnkaiJsonTest \
   dev.claude.assistant.ankai.AnkaiEndpointTest \
   dev.claude.assistant.ankai.VoiceRequestTest \

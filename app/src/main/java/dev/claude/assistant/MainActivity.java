@@ -1,6 +1,14 @@
 package dev.claude.assistant;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.Manifest;
+import dev.claude.assistant.ankai.AnkaiConnection;
+import dev.claude.assistant.remote.DeviceLinkStore;
+import dev.claude.assistant.remote.DeviceHttp;
+import dev.claude.assistant.remote.DeviceChannelService;
+import org.json.JSONObject;
 import android.app.role.RoleManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -45,12 +53,39 @@ public class MainActivity extends Activity {
     private Switch autoplaySwitch;
     private Button defaultAssistantButton;
     private PlaybackSettings playbackSettings;
+    private DeviceLinkStore deviceStore;
+    private Button devicePair, deviceRevoke;
+    private Switch deviceEnabled;
+    private TextView deviceStatus;
+    private boolean renderingDevice;
+    private boolean deviceBusy;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         bindViews();
+        deviceStore = new DeviceLinkStore(this);
+        devicePair = findViewById(R.id.device_pair);
+        deviceRevoke = findViewById(R.id.device_revoke);
+        deviceEnabled = findViewById(R.id.device_enabled);
+        deviceStatus = findViewById(R.id.device_status);
+        devicePair.setOnClickListener(v -> pairDevice());
+        deviceRevoke.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Gerätekopplung widerrufen?")
+                .setMessage("Das freigegebene Projekt verliert den Gerätezugriff. Der Kanal wird sofort pausiert.")
+                .setNegativeButton("Abbrechen", null).setPositiveButton("Widerrufen", (d,w) -> revokeDevice()).show());
+        deviceEnabled.setOnCheckedChangeListener((v, enabled) -> {
+            if (renderingDevice) return;
+            if (enabled && !getSystemService(NotificationManager.class).areNotificationsEnabled()) {
+                if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1002);
+                deviceStore.status("Benachrichtigungen erlauben, danach erneut aktivieren"); renderDevice(); return;
+            }
+            deviceStore.enabled(enabled);
+            if (enabled) startForegroundService(new Intent(this, DeviceChannelService.class));
+            else stopService(new Intent(this, DeviceChannelService.class));
+            renderDevice();
+        });
         presenter = new ConnectionPresenter(EncryptedPrefsSecretStore.connectionStore(this));
         playbackSettings = EncryptedPrefsSecretStore.playbackSettings(this);
         autoplaySwitch.setChecked(playbackSettings.isAutoplayEnabled());
@@ -59,7 +94,13 @@ public class MainActivity extends Activity {
         defaultAssistantButton.setOnClickListener(view -> openDefaultAssistantSetup());
 
         connectButton.setOnClickListener(view -> connect());
-        disconnectButton.setOnClickListener(view -> runNetwork(presenter::disconnect));
+        disconnectButton.setOnClickListener(view -> {
+            if (deviceStore.id() != null) {
+                connectionError.setText("Bitte zuerst die Gerätekopplung widerrufen.");
+                connectionError.setVisibility(View.VISIBLE); return;
+            }
+            runNetwork(presenter::disconnect);
+        });
         projectSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
             Object selected = projectSpinner.getItemAtPosition(position);
             if (selected instanceof ProjectChoice) {
@@ -134,6 +175,17 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (deviceStore != null) {
+            boolean active = false;
+            android.app.ActivityManager manager = getSystemService(android.app.ActivityManager.class);
+            for (android.app.ActivityManager.RunningServiceInfo service : manager.getRunningServices(50)) {
+                if (DeviceChannelService.class.getName().equals(service.service.getClassName())) active = true;
+            }
+            if (deviceStore.enabled() && !active) {
+                deviceStore.enabled(false); deviceStore.status("Pausiert · nach Prozessende wieder aktivieren");
+            }
+            renderDevice();
+        }
         if (defaultAssistantButton != null) {
             boolean selected = isDefaultAssistant();
             defaultAssistantButton.setText(selected
@@ -169,6 +221,7 @@ public class MainActivity extends Activity {
 
     private void render(ConnectionUiState state) {
         setBusy(false);
+        renderDevice();
         if (ConnectionFormPolicy.shouldClearPassword(state)) password.setText("");
         connectionError.setText(state.error == null ? "" : state.error);
         connectionError.setVisibility(state.error == null ? View.GONE : View.VISIBLE);
@@ -197,10 +250,66 @@ public class MainActivity extends Activity {
             if (project.id.equals(state.defaultProjectId)) selectedPosition = choices.size() - 1;
         }
         ArrayAdapter<ProjectChoice> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, choices);
+                android.R.layout.simple_spinner_item, choices) {
+            @Override public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                if (view instanceof TextView) ((TextView) view).setTextColor(getColor(R.color.text_primary));
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         projectSpinner.setAdapter(adapter);
         projectSpinner.setSelection(selectedPosition, false);
+    }
+
+    private void renderDevice() {
+        if (deviceStore == null) return;
+        renderingDevice = true;
+        boolean paired = deviceStore.id() != null;
+        AnkaiConnection connection = EncryptedPrefsSecretStore.connectionStore(this).load();
+        deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.projectName() + "\n" + deviceStore.status() : "Nicht gekoppelt · zuerst anmelden und ein Projekt wählen");
+        devicePair.setEnabled(!deviceBusy && !paired && connection != null && connection.defaultProjectId != null);
+        devicePair.setVisibility(paired ? View.GONE : View.VISIBLE);
+        deviceRevoke.setVisibility(paired ? View.VISIBLE : View.GONE);
+        deviceRevoke.setEnabled(!deviceBusy);
+        deviceEnabled.setEnabled(!deviceBusy && paired);
+        deviceEnabled.setChecked(paired && deviceStore.enabled());
+        renderingDevice = false;
+    }
+
+    private void pairDevice() {
+        AnkaiConnection connection = EncryptedPrefsSecretStore.connectionStore(this).load();
+        if (connection == null || connection.defaultProjectId == null) return;
+        new AlertDialog.Builder(this).setTitle("Gerätezugriff freigeben?")
+                .setMessage("Projekt: " + connection.defaultProjectName + "\nGeräteinfos und lesbare Einstellungen können abgerufen werden. Einstellungsseiten erfordern eine Bestätigung am Handy. Du kannst jederzeit pausieren oder widerrufen.")
+                .setNegativeButton("Abbrechen", null).setPositiveButton("Koppeln", (d,w) -> {
+                    deviceBusy = true; renderDevice();
+                    networkExecutor.execute(() -> {
+                        String error = null;
+                        try {
+                            JSONObject response = new DeviceHttp().account(connection, "/api/devices", "POST", new JSONObject()
+                                    .put("name", Build.MANUFACTURER + " " + Build.MODEL).put("projectId", connection.defaultProjectId));
+                            deviceStore.save(response.getJSONObject("device").getString("id"), response.getString("token"), connection.baseUrl,
+                                    connection.defaultProjectName == null ? connection.defaultProjectId : connection.defaultProjectName);
+                        } catch (Exception e) { error = "Kopplung fehlgeschlagen: " + e.getMessage() + " · Der Gerätekanal muss auf dieser Instanz verfügbar sein."; }
+                        final String message = error;
+                        runOnUiThread(() -> { deviceBusy = false; if (!isDestroyed()) { renderDevice(); connectionError.setText(message == null ? "" : message); connectionError.setVisibility(message == null ? View.GONE : View.VISIBLE); } });
+                    });
+                }).show();
+    }
+
+    private void revokeDevice() {
+        deviceStore.enabled(false);
+        stopService(new Intent(this, DeviceChannelService.class));
+        deviceBusy = true; renderDevice();
+        networkExecutor.execute(() -> {
+            String error = null;
+            try { new DeviceHttp().channel(deviceStore, "", "DELETE", null); deviceStore.clear(); }
+            catch (DeviceHttp.Failure e) { if (e.status == 401 || e.status == 404) deviceStore.clear(); else error = "Widerruf fehlgeschlagen · lokal pausiert, bitte erneut versuchen."; }
+            catch (Exception e) { error = "Offline · lokal pausiert. Server-Widerruf bitte erneut versuchen."; }
+            final String message = error;
+            runOnUiThread(() -> { deviceBusy = false; if (!isDestroyed()) { renderDevice(); connectionError.setText(message == null ? "" : message); connectionError.setVisibility(message == null ? View.GONE : View.VISIBLE); } });
+        });
     }
 
     @Override

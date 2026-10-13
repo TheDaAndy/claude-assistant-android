@@ -58,6 +58,8 @@
             android:layout_marginTop="8dp" />
 
         <EditText
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
             android:id="@+id/ankai_instance_url"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -68,6 +70,8 @@
             android:singleLine="true" />
 
         <EditText
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
             android:id="@+id/ankai_username"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -77,6 +81,8 @@
             android:singleLine="true" />
 
         <EditText
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
             android:id="@+id/ankai_password"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -121,6 +127,22 @@
             android:textColor="#B00020"
             android:visibility="gone" />
 
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="28dp" android:text="Gerät mit Ankaï koppeln"
+            android:textColor="@color/text_primary" android:textSize="20sp" android:textStyle="bold" />
+        <TextView android:id="@+id/device_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Nicht gekoppelt" android:textColor="@color/text_secondary" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Gib dem ausgewählten Projekt Zugriff auf Geräteinfos und lesbare Einstellungen. Einstellungsseiten öffnen sich erst nach deiner Bestätigung am Handy. ADB, App-Installation und systemweite Logs sind noch nicht verbunden."
+            android:textColor="@color/text_secondary" android:layout_marginTop="8dp" />
+        <Button android:id="@+id/device_pair" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Mit ausgewähltem Projekt koppeln" />
+        <Switch android:textColor="@color/text_primary" android:id="@+id/device_enabled" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Gerätezugriff im Hintergrund aktiv" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Aktiv: sichtbare Benachrichtigung mit Pause. Ohne Wake-Lock; bei Netzfehlern längere Wartezeiten. Android kann den Kanal im Energiesparmodus unterbrechen. Nach Neustart wieder manuell aktivieren."
+            android:textColor="@color/text_secondary" android:textSize="12sp" />
+        <Button android:id="@+id/device_revoke" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerätekopplung widerrufen" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -131,6 +153,7 @@
             android:textStyle="bold" />
 
         <Switch
+            android:textColor="@color/text_primary"
             android:id="@+id/ankai_autoplay"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
