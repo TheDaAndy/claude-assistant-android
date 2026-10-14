@@ -18,17 +18,17 @@ public final class UiControlService extends AccessibilityService {
     private static volatile UiControlService current;
     private final Handler main=new Handler(Looper.getMainLooper());
     public static boolean ready(){return current!=null;}
-    @Override protected void onServiceConnected(){current=this;resumeChannel();}
+    @Override protected void onServiceConnected(){current=this;resumeChannel();DevicePresenceMonitor.changed();}
     private void resumeChannel(){
         DeviceLinkStore s=new DeviceLinkStore(this);
         if(s.id()!=null&&s.uiGranted()&&s.uiResume()&&getSystemService(android.app.NotificationManager.class).areNotificationsEnabled()){
             try{s.enabled(true);startForegroundService(new Intent(this,DeviceChannelService.class));}catch(Exception denied){s.status("Automatischer Start blockiert · App öffnen");}
         }
     }
-    @Override public void onAccessibilityEvent(AccessibilityEvent event){}
+    @Override public void onAccessibilityEvent(AccessibilityEvent event){if(event!=null)DevicePresenceMonitor.onEvent(event.getEventType());}
     @Override public void onInterrupt(){}
-    @Override public boolean onUnbind(Intent i){if(current==this)current=null;new DeviceLinkStore(this).status("Bedienungshilfe getrennt");return super.onUnbind(i);}
-    @Override public void onDestroy(){if(current==this)current=null;super.onDestroy();}
+    @Override public boolean onUnbind(Intent i){if(current==this)current=null;DevicePresenceMonitor.changed();new DeviceLinkStore(this).status("Bedienungshilfe getrennt");return super.onUnbind(i);}
+    @Override public void onDestroy(){if(current==this)current=null;DevicePresenceMonitor.changed();super.onDestroy();}
     public static JSONObject execute(String action,JSONObject params)throws Exception{
         UiControlService s=current;if(s==null)return error("Bedienungshilfe nicht verbunden.");
         CompletableFuture<JSONObject> result=new CompletableFuture<>();
@@ -42,6 +42,7 @@ public final class UiControlService extends AccessibilityService {
         if(future.isDone())return;
         if(!allowed()){future.complete(error("Gerätekanal pausiert oder UI-Freigabe entzogen."));return;}
         if(getSystemService(KeyguardManager.class).isKeyguardLocked()){future.complete(error("Handy gesperrt · bitte lokal entsperren."));return;}
+        if(!getSystemService(PowerManager.class).isInteractive()){future.complete(error("Display aus · bitte einschalten und Handy zum Testen freigeben."));return;}
         if("ui_screenshot".equals(action)){screenshot(future);return;}
         AccessibilityNodeInfo root=getRootInActiveWindow();
         try{

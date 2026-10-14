@@ -21,6 +21,7 @@ public final class DeviceChannelService extends Service {
     private volatile boolean running;
     private DeviceLinkStore store;
     private ShizukuBridge bridge;
+    private DevicePresenceMonitor presence;
     private final java.util.Set<Integer> actionNotifications = new java.util.HashSet<>();
     public static int notificationId(String id) { return 10000 + (id.hashCode() & 0x3fffffff); }
 
@@ -36,7 +37,7 @@ public final class DeviceChannelService extends Service {
         Notification n = foregroundNotification();
         if (Build.VERSION.SDK_INT >= 34) startForeground(2801, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(2801, n);
-        running = true; worker.execute(this::loop); return START_NOT_STICKY;
+        running = true; presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_NOT_STICKY;
     }
     private Notification foregroundNotification() {
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
@@ -49,12 +50,6 @@ public final class DeviceChannelService extends Service {
         int failures = 0;
         while (running && store.enabled()) {
             try {
-                int uid=ShizukuBridge.privilegeUid();
-                JSONObject capabilities=new JSONObject().put("sequence",store.nextControlSequence()).put("enabled",store.enabled() && store.maximumGranted(uid)).put("ready",ShizukuBridge.authorized())
-                        .put("uid",uid==0||uid==2000?uid:JSONObject.NULL).put("uiEnabled",store.enabled()&&store.uiGranted()).put("uiReady",UiControlService.ready());
-                JSONObject capabilityResponse=http.channel(store,"/capabilities","POST",capabilities);
-                JSONObject capabilityDevice=capabilityResponse.optJSONObject("device");
-                if(capabilityDevice!=null)applyDevice(capabilityDevice);
                 store.status("Verbunden · wartet auf Aktionen");
                 JSONObject response = http.channel(store, "/commands", "GET", null);
                 JSONObject device = response.optJSONObject("device");
@@ -84,8 +79,8 @@ public final class DeviceChannelService extends Service {
         }
         stopSelf();
     }
-    private void applyDevice(JSONObject device) throws Exception {
-        if(device.optLong("scopeRevision",0)==store.scopeRevision())return;
+    private synchronized void applyDevice(JSONObject device) throws Exception {
+        if(device.optLong("scopeRevision",0)<=store.scopeRevision())return;
         synchronized(actionNotifications) {
             for(int notificationId:actionNotifications)getSystemService(NotificationManager.class).cancel(notificationId);
             actionNotifications.clear();
@@ -127,6 +122,7 @@ public final class DeviceChannelService extends Service {
                     .put("appVersion", getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
             BatteryManager battery = getSystemService(BatteryManager.class);
             data.put("batteryPercent", battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY));
+            if(presence!=null)data.put("presence",presence.snapshot());
         } else if ("settings_snapshot".equals(action)) {
             PowerManager power = getSystemService(PowerManager.class);
             data.put("batterySaver", power.isPowerSaveMode()).put("ignoringBatteryOptimizations", power.isIgnoringBatteryOptimizations(getPackageName()))
@@ -155,6 +151,7 @@ public final class DeviceChannelService extends Service {
         return new JSONObject().put("status", "ok").put("data", data);
     }
     @Override public void onDestroy() {
+        if(presence!=null)presence.close();
         running = false; http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
         if(store!=null && store.id()!=null) {
             final long disabledSequence=store.nextControlSequence();

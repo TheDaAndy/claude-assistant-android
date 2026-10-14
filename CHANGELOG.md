@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.5.0
+
+- Live-Verfügbarkeit während des aktiven Gerätekanals: Display an/aus, Sperrbildschirm/Gerätesperre und näherungsweise kürzlich erkannte UI-Interaktion. Änderungen und30s-Heartbeat ohne permanenten Wake-Lock, keine Bildschirmtexte im Status.
+- Separater Statuskanal, frische Verfügbarkeit/Handlungsgrund über die Ankaï-Geräte-API; dunkle und gesperrte Geräte werden lokal für UI-Aktionen abgewiesen. Keine automatische Entsperrung.
+- UI erklärt die begrenzte Aktivitätserkennung einschließlich Automationsereignissen. Neue reine JVM-Zeitmodelltests und separate native API35-Presence-Regression; keine Test-Hooks im App-APK.
+
 ## 1.4.0
 
 - Rootlose Fernsteuerung über ausdrücklich aktivierte Android-Bedienungshilfe und separaten lokalen Ankaï-Grant.
