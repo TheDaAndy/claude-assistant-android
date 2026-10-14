@@ -137,6 +137,7 @@
             android:textColor="@color/text_secondary" android:layout_marginTop="8dp" />
         <Button android:id="@+id/device_pair" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerät koppeln und Freigabe wählen" />
         <Button android:id="@+id/device_scope" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerätefreigabe ändern" android:visibility="gone" />
+        <Button android:id="@+id/device_install" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Apps über Ankaï installieren" />
         <Button android:id="@+id/device_ui" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Handy steuern ohne Root" />
                 <Button android:id="@+id/device_maximum" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Optional: ADB über Shizuku" android:visibility="gone" />
         <Switch android:textColor="@color/text_primary" android:id="@+id/device_enabled" android:layout_width="match_parent" android:layout_height="wrap_content"

@@ -77,6 +77,7 @@ public class MainActivity extends Activity {
         deviceScope=findViewById(R.id.device_scope);
         deviceScope.setOnClickListener(v -> startActivity(new Intent(this, DeviceScopeActivity.class)));
         findViewById(R.id.device_maximum).setOnClickListener(v -> startActivity(new Intent(this,MaximumControlActivity.class)));
+        findViewById(R.id.device_install).setOnClickListener(v -> startActivity(new Intent(this,dev.claude.assistant.remote.InstallControlActivity.class)));
         findViewById(R.id.device_ui).setOnClickListener(v -> startActivity(new Intent(this,dev.claude.assistant.remote.UiControlActivity.class)));
         deviceRevoke.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Gerätekopplung widerrufen?")
                 .setMessage("Alle bisherigen Freigaben verlieren den Gerätezugriff. Der Kanal wird sofort pausiert.")
@@ -278,6 +279,7 @@ public class MainActivity extends Activity {
         deviceStatus.setText(paired ? "Gekoppelt: " + deviceStore.scopeLabel() + "\n" + deviceStore.status() : "Nicht gekoppelt · Freigabe unabhängig vom Sprach-Standardprojekt");
         devicePair.setEnabled(!deviceBusy && !paired && connection != null);
         devicePair.setVisibility(paired ? View.GONE : View.VISIBLE);
+        findViewById(R.id.device_install).setOnClickListener(v -> startActivity(new Intent(this,dev.claude.assistant.remote.InstallControlActivity.class)));
         findViewById(R.id.device_ui).setEnabled(paired&&!deviceBusy);
         findViewById(R.id.device_maximum).setVisibility(paired?View.VISIBLE:View.GONE);
         deviceScope.setVisibility(paired ? View.VISIBLE : View.GONE);

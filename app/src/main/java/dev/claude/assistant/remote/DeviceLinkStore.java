@@ -7,7 +7,8 @@ import org.json.JSONObject;
 
 public final class DeviceLinkStore {
     private final SecretStore store;
-    public DeviceLinkStore(Context context) { store = new EncryptedPrefsSecretStore(context); }
+    private final Context context;
+    public DeviceLinkStore(Context context) { this.context=context.getApplicationContext();store = new EncryptedPrefsSecretStore(context); }
     public String id() { return store.get("device.id"); }
     public String token() { return store.get("device.token"); }
     public String baseUrl() { return store.get("device.baseUrl"); }
@@ -22,6 +23,12 @@ public final class DeviceLinkStore {
     }
     private static final Object CONTROL_LOCK=new Object();
     public long nextControlSequence(){synchronized(CONTROL_LOCK){long previous=0;try{previous=Long.parseLong(store.get("device.controlSequence"));}catch(Exception ignored){}long next=Math.max(System.currentTimeMillis(),previous+1);store.put("device.controlSequence",String.valueOf(next));return next;}}
+    public boolean installGranted(){return "true".equals(store.get("device.installGranted"));}
+    public void installGranted(boolean value){store.put("device.installGranted",String.valueOf(value));}
+    public JSONObject installJobs(){try{return new JSONObject(store.get("device.installJobs"));}catch(Exception e){return new JSONObject();}}
+    public JSONObject installJob(String id){return installJobs().optJSONObject(id);}
+    public void installJob(String id,JSONObject job)throws Exception{synchronized(CONTROL_LOCK){JSONObject jobs=installJobs();jobs.put(id,job);store.put("device.installJobs",jobs.toString());}}
+    public void removeInstallJob(String id)throws Exception{synchronized(CONTROL_LOCK){JSONObject jobs=installJobs();jobs.remove(id);store.put("device.installJobs",jobs.toString());}}
     public boolean uiGranted(){return "true".equals(store.get("device.uiGranted"));}
     public void uiGranted(boolean value){store.put("device.uiGranted",String.valueOf(value));}
     public boolean uiResume(){return "true".equals(store.get("device.uiResume"));}
@@ -49,6 +56,7 @@ public final class DeviceLinkStore {
         results.put(id, result); store.put("device.results", results.toString());
     }
     public void clear() {
-        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume"}) store.remove("device." + key);
+        PackageInstallManager.cancelAll(context,"Kopplung entfernt");
+        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs"}) store.remove("device." + key);
     }
 }

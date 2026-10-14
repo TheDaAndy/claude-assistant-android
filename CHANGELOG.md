@@ -2,6 +2,12 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.6.0
+
+- Eigenständige lokale Freigabe für APK-Installationsanfragen, Android-Erlaubnis und sichtbare Bestätigungsbenachrichtigung; unabhängig von Bedienungshilfe/Shizuku.
+- Geschützter Einzel-APK-Transfer mit Größen-/SHA256-Prüfung und Android-PackageInstaller-Session. Jede Installation verlangt lokale Android-Zustimmung; echte System-Ergebnisse statt bloßer Übergabebestätigung.
+- Verschlüsselte Ergebnis-Outbox, einmalige Befehlsausführung, Abbruch offener Sessions beim Pausieren/Freigabewechsel soweit möglich; keine stille Installation, Deinstallation oder automatische Dialogbestätigung.
+
 ## 1.5.0
 
 - Live-Verfügbarkeit während des aktiven Gerätekanals: Display an/aus, Sperrbildschirm/Gerätesperre und näherungsweise kürzlich erkannte UI-Interaktion. Änderungen und30s-Heartbeat ohne permanenten Wake-Lock, keine Bildschirmtexte im Status.

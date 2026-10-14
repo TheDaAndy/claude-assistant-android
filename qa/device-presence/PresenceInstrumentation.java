@@ -18,10 +18,10 @@ public final class PresenceInstrumentation extends Instrumentation {
    DeviceLinkStore store=new DeviceLinkStore(c);
    store.save(args.getString("deviceId"),args.getString("token"),args.getString("baseUrl"),"QA only");
    store.updateDevice(new JSONObject().put("scope",new JSONObject().put("type","user")).put("scopeRevision",0).put("scopeLabel","QA only"));
-   store.uiGranted(true);store.uiResume(false);store.enabled(true);
+   store.uiGranted(!Boolean.parseBoolean(args.getString("install","false")));store.installGranted(Boolean.parseBoolean(args.getString("install","false")));store.uiResume(false);store.enabled(true);
    runOnMainSync(()->c.startForegroundService(new Intent(c,DeviceChannelService.class)));
    result.putString("result","test pairing configured");sendStatus(0,result);
-   startActivitySync(new Intent(c,dev.claude.assistant.remote.UiControlActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+   startActivitySync(new Intent(c,Boolean.parseBoolean(args.getString("install","false"))?dev.claude.assistant.remote.InstallControlActivity.class:dev.claude.assistant.remote.UiControlActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
    Thread.sleep(600000);finish(-1,result);
   }catch(Exception e){result.putString("error",e.getClass().getSimpleName());finish(0,result);}
  }

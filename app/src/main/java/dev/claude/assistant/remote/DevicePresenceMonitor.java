@@ -57,9 +57,10 @@ final class DevicePresenceMonitor implements AutoCloseable {
     private void report(){
         if(closed || !store.enabled() || store.id()==null)return;
         try{
+            PackageInstallManager.flush(context);
             int uid=ShizukuBridge.privilegeUid();
             JSONObject capabilities=new JSONObject().put("sequence",store.nextControlSequence()).put("enabled",store.enabled()&&store.maximumGranted(uid)).put("ready",ShizukuBridge.authorized())
-                .put("uid",uid==0||uid==2000?uid:JSONObject.NULL).put("uiEnabled",store.enabled()&&store.uiGranted()).put("uiReady",UiControlService.ready());
+                .put("uid",uid==0||uid==2000?uid:JSONObject.NULL).put("uiEnabled",store.enabled()&&store.uiGranted()).put("uiReady",UiControlService.ready()).put("installEnabled",store.enabled()&&store.installGranted()).put("installReady",PackageInstallManager.ready(context));
             JSONObject response=http.channel(store,"/capabilities","POST",capabilities);
             JSONObject device=response.optJSONObject("device");if(device!=null)update.apply(device);
             if(!closed&&store.enabled())http.channel(store,"/presence","POST",snapshot());

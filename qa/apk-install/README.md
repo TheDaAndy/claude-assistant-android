@@ -1,0 +1,11 @@
+# Native single-APK installation regression (API35)
+
+Disposable emulator only; no real phone, real account or production DB. No test hook is shipped in the Assistant APK.
+
+Build the Assistant and JVM tests. Start Ankaï's `scripts/test-device-install-server.mjs` with fresh private `QA_FIXTURE_DIR` (localhost ephemeral listener, private fixture.json/token); use adb reverse for its port. Build the separate `qa/device-presence` instrumentation APK with the SDK debug identity and run it with `-e install true` plus private deviceId/token/baseUrl fixture values. The instrumentation seeds only the test device, permits install requests, leaves UI/accessibility grant off, and holds the target for10minutes. Explicitly grant POST_NOTIFICATIONS and REQUEST_INSTALL_PACKAGES app-op in the test emulator. Never auto-grant these on a real device. Remove any installed `org.ankai.uifixture` first.
+
+Use the separately built `qa/ui-control/fixture.apk` as payload. Set `ANKAI_QA_FIXTURE`, `ANKAI_QA_OUTPUT`, `ANKAI_QA_APK`; run `python3 qa/apk-install/run.py` to upload via real run routes, queue and inspect the Android confirmation. Open the resulting image before claiming UI success. `ANKAI_QA_MODE=confirm` simulates a LOCAL user tapping Install on the disposable emulator; assert PackageInstaller's true success, matching hash and pm-installed package. It never calls remote ui_tap to approve permission/installation.
+
+Repeat prepare + `ANKAI_QA_MODE=cancel` for user cancellation. Grouped Android notifications must be expanded before selecting a child; tapping the summary opens the Assistant instead. `pending` queues without opening confirmation; `revoke` switches the local installation grant off and verifies terminal failure plus removed capability. If multiple pending requests exist, bind the selected test command ID to the actual notification; never infer success from dispatch/progress. Inspect/re-capture actual settings after instrumentation expires, rather than using stale UIAutomator XML. Capture the crash buffer and ensure no crash.
+
+Clean the private QA fixture/token/server, clear the test app data and use the global Android teardown. Keep only sanitized reports and inspected screenshots. Physical-device unknown-source/OEM/Doze and self-update behavior remain separate acceptance work.

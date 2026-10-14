@@ -81,6 +81,7 @@ public final class DeviceChannelService extends Service {
     }
     private synchronized void applyDevice(JSONObject device) throws Exception {
         if(device.optLong("scopeRevision",0)<=store.scopeRevision())return;
+        PackageInstallManager.cancelAll(this,"Gerätefreigabe geändert");
         synchronized(actionNotifications) {
             for(int notificationId:actionNotifications)getSystemService(NotificationManager.class).cancel(notificationId);
             actionNotifications.clear();
@@ -98,6 +99,10 @@ public final class DeviceChannelService extends Service {
         if (!DeviceCommandPolicy.matchesGrant(c.optLong("scopeRevision",0),store.scopeRevision())
                 || !DeviceCommandPolicy.allowed(action, target, c.optLong("expiresAt"), System.currentTimeMillis()))
             return new JSONObject().put("status", "error").put("data", "Unzulässige oder abgelaufene Aktion");
+        if("install_apk".equals(action)){
+            store.cacheResult(c.getString("id"),new JSONObject().put("status","error").put("data","Installationsausführung unterbrochen; Ergebnis unbekannt. Nicht automatisch wiederholen."));
+            return PackageInstallManager.begin(this,c,http);
+        }
         if(action.startsWith("ui_")) {
             if(!store.uiGranted()||!UiControlService.ready()||!running||!store.enabled())return new JSONObject().put("status","error").put("data","Bedienungshilfe nicht freigegeben/aktiv.");
             store.cacheResult(c.getString("id"),new JSONObject().put("status","error").put("data","UI-Ausführung unterbrochen; Ergebnis unbekannt. Nicht automatisch wiederholen."));
@@ -151,11 +156,12 @@ public final class DeviceChannelService extends Service {
         return new JSONObject().put("status", "ok").put("data", data);
     }
     @Override public void onDestroy() {
+        PackageInstallManager.cancelAll(this,"Gerätekanal pausiert");
         if(presence!=null)presence.close();
         running = false; http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
         if(store!=null && store.id()!=null) {
             final long disabledSequence=store.nextControlSequence();
-            new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL).put("uiEnabled",false).put("uiReady",false));}catch(Exception ignored){}},"device-disable-report").start();
+            new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL).put("uiEnabled",false).put("uiReady",false).put("installEnabled",false).put("installReady",false));}catch(Exception ignored){}},"device-disable-report").start();
         }
         synchronized (actionNotifications) { for (int id : actionNotifications) getSystemService(NotificationManager.class).cancel(id); }
         if (store != null) { store.enabled(false); if (!store.status().startsWith("Kopplung widerrufen")) store.status("Pausiert · in der App wieder aktivieren"); }

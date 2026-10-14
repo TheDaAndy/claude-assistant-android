@@ -12,6 +12,7 @@
 
     <!-- Berechtigungen -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -92,6 +93,8 @@
                 android:value="ai_assistant" />
         </service>
 
+        <activity android:name=".remote.InstallControlActivity" android:exported="false" />
+        <receiver android:name=".remote.InstallResultReceiver" android:exported="false" />
         <activity android:name=".remote.DeviceScopeActivity" android:exported="false" />
         <activity android:name=".remote.DeviceActionActivity" android:exported="false" />
         <service android:name=".remote.DeviceChannelService" android:exported="false" android:foregroundServiceType="specialUse">
