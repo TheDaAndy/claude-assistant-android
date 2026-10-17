@@ -191,7 +191,8 @@ public class MainActivity extends Activity {
                 if (DeviceChannelService.class.getName().equals(service.service.getClassName())) active = true;
             }
             if (deviceStore.enabled() && !active) {
-                deviceStore.uiResume(false); deviceStore.enabled(false); deviceStore.status("Pausiert · nach Prozessende wieder aktivieren");
+                try { startForegroundService(new Intent(this, DeviceChannelService.class)); }
+                catch (Exception blocked) { deviceStore.status("Automatische Wiederaufnahme blockiert · Verbindung erneut starten"); }
             }
             renderDevice();
         }

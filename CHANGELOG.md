@@ -2,6 +2,10 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.6.1
+
+- Gerätekanal bleibt nach systembedingtem Dienstende aktiviert und verwendet START_STICKY für Androids Wiederherstellung. Bewusstes Pausieren und widerrufene Kopplungen bleiben deaktiviert. Force-Stop und Android/OEM-Startbeschränkungen bleiben Grenzen.
+
 ## 1.6.0
 
 - Eigenständige lokale Freigabe für APK-Installationsanfragen, Android-Erlaubnis und sichtbare Bestätigungsbenachrichtigung; unabhängig von Bedienungshilfe/Shizuku.

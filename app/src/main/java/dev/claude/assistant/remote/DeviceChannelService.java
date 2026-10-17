@@ -32,12 +32,12 @@ public final class DeviceChannelService extends Service {
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && STOP.equals(intent.getAction())) { store.uiResume(false); store.enabled(false); stopSelf(); return START_NOT_STICKY; }
-        if (running) return START_NOT_STICKY;
+        if (running) return START_STICKY;
         if (store.id() == null || !store.enabled()) { stopSelf(); return START_NOT_STICKY; }
         Notification n = foregroundNotification();
         if (Build.VERSION.SDK_INT >= 34) startForeground(2801, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(2801, n);
-        running = true; presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_NOT_STICKY;
+        running = true; presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_STICKY;
     }
     private Notification foregroundNotification() {
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
@@ -164,7 +164,10 @@ public final class DeviceChannelService extends Service {
             new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL).put("uiEnabled",false).put("uiReady",false).put("installEnabled",false).put("installReady",false));}catch(Exception ignored){}},"device-disable-report").start();
         }
         synchronized (actionNotifications) { for (int id : actionNotifications) getSystemService(NotificationManager.class).cancel(id); }
-        if (store != null) { store.enabled(false); if (!store.status().startsWith("Kopplung widerrufen")) store.status("Pausiert · in der App wieder aktivieren"); }
+        // Destruction is not user consent to pause: Android may reclaim the service.
+        // STOP and authentication revocation persist disabled before stopping.
+        if (store != null && !store.status().startsWith("Kopplung widerrufen"))
+            store.status(store.enabled() ? "Verbindung unterbrochen · automatische Wiederaufnahme" : "Pausiert · in der App wieder aktivieren");
         stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy();
     }
     @Override public IBinder onBind(Intent intent) { return null; }

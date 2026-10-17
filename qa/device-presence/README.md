@@ -9,3 +9,17 @@ Use the shared disposable `qa_api35` emulator, never a physical phone or product
 5. Install the separate `qa/ui-control` fixture; set `ANKAI_QA_FIXTURE` to the private JSON and `ANKAI_QA_OUTPUT` to a report directory, then `python3 qa/device-presence/run.py`.
 
 Checks: awake/unlocked ready; actual injected click causes an approximate interaction event; age decays; screen-off report and UI denial; wake/unlock; temporary dummy emulator PIN lock reported and not ready; credential cleanup; accessibility revoke/re-enable changes readiness. The test always attempts to clear its dummy PIN. No human-presence claim follows from these checks. Capture/inspect the current native settings screen for the disclosure text. Crash buffer must be empty. Stop the QA server and run the global Android teardown; never leave emulator/build daemons or test credentials behind.
+
+## Service recovery regression (1.6.1)
+
+Use an isolated emulator and localhost device-channel fixture returning HTTP200
+and `{"command":null}` for GET, `{}` for POST. Never seed a production pairing.
+Run instrumentation with `-e recovery true` and the fixture credentials; it exits
+after enabling the channel. Open MainActivity again after instrumentation exits
+(instrumentation termination itself is not an Android low-memory kill).
+Check the active foreground DeviceChannelService, kill only the app PID using
+`run-as dev.claude.assistant kill -9 <pid>`, and wait for a different PID with
+foreground service restored. Do not use force-stop, which intentionally prevents
+Android sticky restart. Run instrumentation with `-e inspectRecovery true` to
+assert enabled survived, explicitly pause and assert enabled is now false.
+Also reopen MainActivity after pausing and verify it does not restart the channel.
