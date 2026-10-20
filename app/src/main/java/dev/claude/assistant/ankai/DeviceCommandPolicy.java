@@ -13,6 +13,6 @@ public final class DeviceCommandPolicy {
         return commandRevision >= 0 && commandRevision == currentRevision;
     }
     public static int retrySeconds(int failures) {
-        return Math.min(300, 5 << Math.min(6, Math.max(0, failures - 1)));
+        return Math.min(30, 5 << Math.min(6, Math.max(1, failures) - 1));
     }
 }

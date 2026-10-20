@@ -23,3 +23,25 @@ foreground service restored. Do not use force-stop, which intentionally prevents
 Android sticky restart. Run instrumentation with `-e inspectRecovery true` to
 assert enabled survived, explicitly pause and assert enabled is now false.
 Also reopen MainActivity after pausing and verify it does not restart the channel.
+
+## Boot / update / command isolation (1.7.0)
+
+`resilience-server.py` listens on localhost18770 and keeps fault injection and
+results in memory. POST `/qa/queue` accepts `commands`, `pollFaults` (HTTP codes),
+and `resultFaults`. GET `/qa/state` returns records. Only use the shared emulator
+with fake device IDs/tokens and debug10.0.2.2 transport.
+
+Seed via `-e recovery true` then reopen MainActivity, allow APK source in emulator
+when testing install failures, and issue an install_apk command missing the
+required scopeRevision (execution exception). Follow it with device_info.
+Inject result404, result409 and poll404/503 separately and require a later
+successful device_info without re-enabling or re-pairing. Reboot the emulator and
+require fresh polling without opening the app; install the same APK again and
+require polling after MY_PACKAGE_REPLACED. Verify the persisted recovery job.
+Repeat process-kill recovery. Finally pause using inspectRecovery and check that
+the recovery job is removed and a reboot does not poll.
+
+Do not interpret these tests as guaranteed OEM/Doze availability. Battery
+optimization exemption is a local Android approval; force-stop cancels delivery
+until the user starts the app again. Shizuku's own post-reboot availability is
+separate from the Assistant channel.

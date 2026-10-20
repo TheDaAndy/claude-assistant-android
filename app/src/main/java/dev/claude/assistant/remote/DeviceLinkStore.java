@@ -37,7 +37,7 @@ public final class DeviceLinkStore {
     public boolean maximumGranted(int uid){return maximumRequested() && String.valueOf(uid).equals(store.get("device.maximumUid"));}
     public void maximum(boolean value,int uid){store.put("device.maximum",String.valueOf(value));if(value)store.put("device.maximumUid",String.valueOf(uid));else store.remove("device.maximumUid");}
     public boolean enabled() { return "true".equals(store.get("device.enabled")); }
-    public void enabled(boolean value) { store.put("device.enabled", String.valueOf(value)); }
+    public void enabled(boolean value) { store.put("device.enabled", String.valueOf(value)); DeviceRecovery.configure(context,value); }
     public void save(String id, String token, String url, String project) {
         clear(); store.put("device.token", token); store.put("device.baseUrl", url);
         store.put("device.projectName", project); store.put("device.id", id);
@@ -56,6 +56,7 @@ public final class DeviceLinkStore {
         results.put(id, result); store.put("device.results", results.toString());
     }
     public void clear() {
+        DeviceRecovery.configure(context,false);
         PackageInstallManager.cancelAll(context,"Kopplung entfernt");
         for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs"}) store.remove("device." + key);
     }

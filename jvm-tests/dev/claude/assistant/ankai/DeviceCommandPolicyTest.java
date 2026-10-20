@@ -21,6 +21,9 @@ public final class DeviceCommandPolicyTest {
     public void testBackoffIsBounded() {
         Assert.eq(5, DeviceCommandPolicy.retrySeconds(1));
         Assert.eq(10, DeviceCommandPolicy.retrySeconds(2));
-        Assert.eq(300, DeviceCommandPolicy.retrySeconds(100));
+        Assert.eq(20, DeviceCommandPolicy.retrySeconds(3));
+        Assert.eq(30, DeviceCommandPolicy.retrySeconds(4));
+        Assert.eq(30, DeviceCommandPolicy.retrySeconds(Integer.MAX_VALUE));
+        Assert.eq(5, DeviceCommandPolicy.retrySeconds(Integer.MIN_VALUE));
     }
 }

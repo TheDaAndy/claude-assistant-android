@@ -2,6 +2,13 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.7.0
+
+- Aktivierten Gerätekanal nach Boot/erstem Entsperren und eigenem APK-Update wiederherstellen; persistente 15-Minuten-JobScheduler-Rückfallebene respektiert Pause und Widerruf. Android kann Starts/Jobs verzögern oder blockieren.
+- Netzwerk-Rückkehr unterbricht Reconnect-Wartezeit; Fehler-Backoff auf maximal30s statt5min begrenzt. Fehlerhafte Aktionen und HTTP404/409 bei Ergebnissen deaktivieren nicht mehr die Kopplung; nur bestätigte Auth-Ablehnung des Poll-Kanals stoppt sie. Ungewisse Befehle werden nicht erneut ausgeführt.
+- Unerwartetes Dienstende sendet keine falsche dauerhafte Rechte-Deaktivierung und bricht nicht pauschal Installationssessions ab. Explizite Pause bleibt wirksam.
+- Lokaler Button für Androids Akku-Ausnahme zur dauerhaften Geräteverbindung; kein permanenter Wake-Lock, keine Force-Stop-/Gerätesperren-Umgehung und keine garantierte 24/7-Verbindung.
+
 ## 1.6.1
 
 - Gerätekanal bleibt nach systembedingtem Dienstende aktiviert und verwendet START_STICKY für Androids Wiederherstellung. Bewusstes Pausieren und widerrufene Kopplungen bleiben deaktiviert. Force-Stop und Android/OEM-Startbeschränkungen bleiben Grenzen.

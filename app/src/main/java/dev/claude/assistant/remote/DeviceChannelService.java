@@ -12,13 +12,22 @@ import dev.claude.assistant.ankai.DeviceCommandPolicy;
 import org.json.JSONObject;
 import java.util.concurrent.*;
 
-/** User-started, visible and stoppable; no boot restart and no wakelock. */
+/** Persistent user-enabled channel. Android controls restart; no permanent wake lock. */
 public final class DeviceChannelService extends Service {
     public static final String STOP = "device.stop";
     public static final String CHANNEL = "device_remote";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final DeviceHttp http = new DeviceHttp();
     private volatile boolean running;
+    private final Object reconnect = new Object();
+    private long networkGeneration;
+    private android.net.ConnectivityManager connectivity;
+    private final android.net.ConnectivityManager.NetworkCallback networkCallback = new android.net.ConnectivityManager.NetworkCallback(){
+        @Override public void onAvailable(android.net.Network network){
+            synchronized(reconnect){networkGeneration++;reconnect.notifyAll();}
+            DevicePresenceMonitor.changed();
+        }
+    };
     private DeviceLinkStore store;
     private ShizukuBridge bridge;
     private DevicePresenceMonitor presence;
@@ -37,7 +46,11 @@ public final class DeviceChannelService extends Service {
         Notification n = foregroundNotification();
         if (Build.VERSION.SDK_INT >= 34) startForeground(2801, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(2801, n);
-        running = true; presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_STICKY;
+        DeviceRecovery.configure(this,true);
+        running = true;
+        connectivity=getSystemService(android.net.ConnectivityManager.class);
+        try{connectivity.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){}
+        presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_STICKY;
     }
     private Notification foregroundNotification() {
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
@@ -50,30 +63,37 @@ public final class DeviceChannelService extends Service {
         int failures = 0;
         while (running && store.enabled()) {
             try {
-                store.status("Verbunden · wartet auf Aktionen");
                 JSONObject response = http.channel(store, "/commands", "GET", null);
+                store.status("Verbunden · wartet auf Aktionen");
                 JSONObject device = response.optJSONObject("device");
                 if(device!=null)applyDevice(device);
                 JSONObject command = response.optJSONObject("command");
                 failures = 0;
                 if (!running || !store.enabled()) break;
                 if (command == null) continue;
-                String id = command.getString("id");
+                // A failed/expired command must never revoke the device channel.
+                String id = command.optString("id");
+                if(id.isEmpty())continue;
                 JSONObject result = store.cachedResult(id);
                 if (result == null) {
-                    result = execute(command);
-                    // Save before upload; retries do not repeat a user-facing action.
+                    try{result = execute(command);}
+                    catch(Exception commandFailure){
+                        result=new JSONObject().put("status","error").put("data","Aktion fehlgeschlagen; Ergebnis gegebenenfalls unbekannt. Nicht automatisch wiederholen.");
+                    }
                     if (!running || !store.enabled()) break;
                     store.cacheResult(id, "ui_screenshot".equals(command.optString("action"))?new JSONObject().put("status","error").put("data","Screenshot wird nicht dauerhaft auf dem Handy gespeichert; neu anfordern."):result);
                 }
                 if (!running || !store.enabled()) break;
-                http.channel(store, "/commands/" + id + "/result", "POST", result);
+                try{http.channel(store, "/commands/" + id + "/result", "POST", result);}
+                catch(DeviceHttp.Failure commandFailure){
+                    if(commandFailure.status==400||commandFailure.status==401||commandFailure.status==404||commandFailure.status==409||commandFailure.status==413)continue;
+                    throw commandFailure;
+                }
                 store.status("Letzte Aktion: " + command.optString("action"));
             } catch (DeviceHttp.Failure error) {
-                if (error.status == 401 || error.status == 404) {
+                if (error.status == 401) {
                     store.uiResume(false); store.enabled(false); store.status("Kopplung widerrufen · neu koppeln"); break;
                 }
-                if (error.status == 409) continue; // An expired leased command is never executed again.
                 if (!backoff(++failures)) break;
             } catch (Exception error) { if (!backoff(++failures)) break; }
         }
@@ -91,8 +111,16 @@ public final class DeviceChannelService extends Service {
     }
     private boolean backoff(int failures) {
         store.status("Offline · Wiederverbindung mit Wartezeit");
-        try { TimeUnit.SECONDS.sleep(DeviceCommandPolicy.retrySeconds(failures)); return running && store.enabled(); }
-        catch (InterruptedException stop) { Thread.currentThread().interrupt(); return false; }
+        synchronized(reconnect){
+            long generation=networkGeneration;
+            long end=SystemClock.elapsedRealtime()+DeviceCommandPolicy.retrySeconds(failures)*1000L;
+            try{
+                while(running && store.enabled() && generation==networkGeneration){
+                    long remaining=end-SystemClock.elapsedRealtime();if(remaining<=0)break;reconnect.wait(remaining);
+                }
+                return running && store.enabled();
+            }catch(InterruptedException stop){Thread.currentThread().interrupt();return false;}
+        }
     }
     private JSONObject execute(JSONObject c) throws Exception {
         String action = c.optString("action"); String target = c.optString("target");
@@ -156,10 +184,13 @@ public final class DeviceChannelService extends Service {
         return new JSONObject().put("status", "ok").put("data", data);
     }
     @Override public void onDestroy() {
-        PackageInstallManager.cancelAll(this,"Gerätekanal pausiert");
+        if(store!=null && !store.enabled())PackageInstallManager.cancelAll(this,"Gerätekanal pausiert");
         if(presence!=null)presence.close();
-        running = false; http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
-        if(store!=null && store.id()!=null) {
+        running = false;
+        synchronized(reconnect){reconnect.notifyAll();}
+        if(connectivity!=null)try{connectivity.unregisterNetworkCallback(networkCallback);}catch(RuntimeException ignored){}
+        http.cancel(); if(bridge!=null)bridge.close(); worker.shutdownNow();
+        if(store!=null && store.id()!=null && !store.enabled()) {
             final long disabledSequence=store.nextControlSequence();
             new Thread(()->{try{new DeviceHttp().channel(store,"/capabilities","POST",new JSONObject().put("sequence",disabledSequence).put("enabled",false).put("ready",false).put("uid",JSONObject.NULL).put("uiEnabled",false).put("uiReady",false).put("installEnabled",false).put("installReady",false));}catch(Exception ignored){}},"device-disable-report").start();
         }
