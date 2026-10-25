@@ -24,6 +24,7 @@ public class FakeAnkai {
     public final List<String> cookieHeaders = new ArrayList<>();
     public volatile String lastBody = "";
     public volatile boolean requireAuth = true;
+    public volatile int rejectedCookieStatus;
 
     private final HttpServer server;
 
@@ -57,6 +58,9 @@ public class FakeAnkai {
             cookieHeaders.add(cookie == null ? "" : cookie);
             lastBody = read(exchange.getRequestBody());
 
+            if (rejectedCookieStatus != 0 && cookie != null && !cookie.isEmpty() && auth == null) {
+                exchange.sendResponseHeaders(rejectedCookieStatus, -1); exchange.close(); return;
+            }
             if (requireAuth && (auth == null || !auth.startsWith("Basic "))
                     && (cookie == null || cookie.isEmpty())) {
                 byte[] out = "{\"error\":\"unauthorized\"}".getBytes(StandardCharsets.UTF_8);

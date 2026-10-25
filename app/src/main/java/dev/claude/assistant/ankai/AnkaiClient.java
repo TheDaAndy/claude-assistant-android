@@ -53,7 +53,7 @@ public final class AnkaiClient {
 
     /** Prueft die Verknuepfung und liefert den angemeldeten Benutzernamen. */
     public String verifyConnection() throws IOException {
-        HttpURLConnection connection = open("/api/auth/session", "GET");
+        HttpURLConnection connection = authenticatedGet("/api/auth/session", "application/json");
         try {
             Map<String, Object> json = readJson(connection);
             Map<String, Object> user = AnkaiJson.object(json, "user");
@@ -67,7 +67,7 @@ public final class AnkaiClient {
 
     /** Projekte fuer die Auswahl des Default-Projekts. */
     public List<AnkaiProject> listProjects() throws IOException {
-        HttpURLConnection connection = open("/api/projects", "GET");
+        HttpURLConnection connection = authenticatedGet("/api/projects", "application/json");
         try {
             Map<String, Object> json = readJson(connection);
             List<AnkaiProject> projects = new ArrayList<>();
@@ -156,8 +156,7 @@ public final class AnkaiClient {
         String value = sessionId == null ? "" : sessionId.trim();
         if (value.isEmpty()) throw new IllegalArgumentException("Session-ID fehlt");
         String encoded = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-        HttpURLConnection connection = open("/api/sessions/" + encoded + "/live", "GET");
-        connection.setRequestProperty("Accept", "application/x-ndjson");
+        HttpURLConnection connection = authenticatedGet("/api/sessions/" + encoded + "/live", "application/x-ndjson");
         try {
             int status = connection.getResponseCode();
             captureCookie(connection);
@@ -198,7 +197,7 @@ public final class AnkaiClient {
         String value = sessionId == null ? "" : sessionId.trim();
         if (value.isEmpty()) throw new IllegalArgumentException("Session-ID fehlt");
         String encoded = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-        HttpURLConnection connection = open("/api/sessions/" + encoded, "GET");
+        HttpURLConnection connection = authenticatedGet("/api/sessions/" + encoded, "application/json");
         try {
             Map<String, Object> json = readJson(connection);
             Map<String, Object> session = AnkaiJson.object(json, "session");
@@ -307,6 +306,26 @@ public final class AnkaiClient {
             return new AnkaiRoutingException(message, code, candidates);
         }
         return new AnkaiApiException(message);
+    }
+
+    /** Retry only a rejected cookie on a read, once. Never replay a mutation/upload. */
+    private HttpURLConnection authenticatedGet(String path, String accept) throws IOException {
+        boolean hadCookie = sessionCookie != null;
+        HttpURLConnection connection = open(path, "GET");
+        connection.setRequestProperty("Accept", accept);
+        try {
+            int status = connection.getResponseCode();
+            if (hadCookie && username != null && (status == 401 || status == 403)) {
+                connection.disconnect();
+                sessionCookie = null;
+                connection = open(path, "GET");
+                connection.setRequestProperty("Accept", accept);
+            }
+            return connection;
+        } catch (IOException failed) {
+            connection.disconnect();
+            throw failed;
+        }
     }
 
     private HttpURLConnection open(String path, String method) throws IOException {

@@ -14,6 +14,22 @@ public final class PresenceInstrumentation extends Instrumentation {
   Bundle result=new Bundle();
   try {
    Context c=getTargetContext();
+   if(Boolean.parseBoolean(args.getString("authRecovery","false"))){
+    DeviceLinkStore device=new DeviceLinkStore(c);
+    device.save("auth-qa-device","dummy-device-token",args.getString("baseUrl"),"QA only");device.enabled(false);
+    dev.claude.assistant.ankai.AnkaiConnectionStore account=dev.claude.assistant.storage.EncryptedPrefsSecretStore.connectionStore(c);
+    account.save(new dev.claude.assistant.ankai.AnkaiConnection(args.getString("baseUrl"),"qa","dummy-password","p1","QA Project","ankai_session=expired"));
+    android.app.Activity activity=startActivitySync(new Intent(c,dev.claude.assistant.MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    long deadline=android.os.SystemClock.elapsedRealtime()+20000;
+    while(!"ankai_session=qa_fresh".equals(account.load().sessionCookie) && android.os.SystemClock.elapsedRealtime()<deadline)Thread.sleep(100);
+    if(!"ankai_session=qa_fresh".equals(account.load().sessionCookie))throw new IllegalStateException("Cookie not renewed");
+    if(!"p1".equals(account.load().defaultProjectId)||!"auth-qa-device".equals(device.id()))throw new IllegalStateException("Project/pairing changed");
+    waitForIdleSync();runOnMainSync(()->{
+      android.view.View error=activity.findViewById(c.getResources().getIdentifier("ankai_connection_error","id",c.getPackageName()));
+      if(error.getVisibility()==android.view.View.VISIBLE)throw new IllegalStateException("Login error still visible");
+    });
+    result.putString("result","expired session renewed; cookie persisted; project and pairing preserved; no visible auth error");finish(-1,result);return;
+   }
    if(Boolean.parseBoolean(args.getString("inspectRecovery","false"))){
     DeviceLinkStore existing=new DeviceLinkStore(c);
     if(!existing.enabled())throw new IllegalStateException("Connection disabled after process death");

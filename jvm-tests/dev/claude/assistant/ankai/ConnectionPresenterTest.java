@@ -8,6 +8,21 @@ import java.util.List;
 /** Tests fuer die Android-freie Zustandslogik der Verknuepfungs-UI. */
 public final class ConnectionPresenterTest {
 
+    public void testRefreshRenewsPersistedCookieWithoutLosingProject() throws Exception {
+        FakeAnkai server=new FakeAnkai();
+        try {
+            server.rejectedCookieStatus=401;
+            server.respond("/api/auth/session",200,"application/json","{\"user\":{\"username\":\"anka\"}}");
+            server.respond("/api/projects",200,"application/json","{\"projects\":[{\"id\":\"p1\",\"name\":\"Project\"}]}");
+            AnkaiConnectionStore store=new AnkaiConnectionStore(new AnkaiConnectionStoreTest.MemoryStore());
+            store.save(new AnkaiConnection(server.baseUrl(),"anka","secret","p1","Project","ankai_session=expired"));
+            ConnectionUiState state=new ConnectionPresenter(store).refresh();
+            Assert.isTrue("no login error",state.error==null);
+            Assert.eq("p1",state.defaultProjectId);Assert.eq(1,state.projects.size());
+            Assert.eq("ankai_session=abc123",store.load().sessionCookie);
+        } finally {server.stop();}
+    }
+
     static final class FakeGateway implements AnkaiGateway {
         String verifiedUser = "anka";
         IOException verifyFailure;

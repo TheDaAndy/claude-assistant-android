@@ -143,7 +143,7 @@
         <Switch android:textColor="@color/text_primary" android:id="@+id/device_enabled" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Gerätezugriff im Hintergrund aktiv" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Aktiv: sichtbare Benachrichtigung mit Pause. Ohne Wake-Lock; bei Netzfehlern längere Wartezeiten. Android kann den Kanal im Energiesparmodus unterbrechen. Nach Neustart wieder manuell aktivieren."
+            android:text="Aktiv: sichtbare Benachrichtigung mit Pause. Automatische Wiederaufnahme nach Systemabbruch, App-Update und Neustart (nach erstem Entsperren). Akku-Freigabe unter „Handy steuern ohne Root“. Android kann die Verbindung verzögern; nach „Stopp erzwingen“ die App öffnen."
             android:textColor="@color/text_secondary" android:textSize="12sp" />
         <Button android:id="@+id/device_revoke" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Gerätekopplung widerrufen" />
 

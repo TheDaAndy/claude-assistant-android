@@ -15,6 +15,47 @@ public class AnkaiClientTest {
         } finally { server.stop(); }
     }
 
+    public void testExpiredCookieReauthenticatesOnceAndKeepsNewSession() throws Exception {
+        FakeAnkai fake = new FakeAnkai();
+        try {
+            fake.rejectedCookieStatus=401;
+            fake.respond("/api/auth/session",200,"application/json","{\"user\":{\"username\":\"anka\"}}");
+            AnkaiClient client=clientFor(fake);client.useSessionCookie("ankai_session=expired");
+            Assert.eq("anka",client.verifyConnection());
+            Assert.eq(2,fake.requestLog.size());
+            Assert.eq("",fake.authHeaders.get(0));
+            Assert.isTrue("retry uses stored credentials",fake.authHeaders.get(1).startsWith("Basic "));
+            Assert.eq("",fake.cookieHeaders.get(1));
+            Assert.eq("ankai_session=abc123",client.sessionCookie());
+        } finally {fake.stop();}
+    }
+    public void testProjectReadRecoversRejectedCookie403() throws Exception {
+        FakeAnkai fake=new FakeAnkai();
+        try {
+            fake.rejectedCookieStatus=403;fake.respond("/api/projects",200,"application/json","{\"projects\":[]}");
+            AnkaiClient client=clientFor(fake);client.useSessionCookie("ankai_session=expired");
+            Assert.eq(0,client.listProjects().size());Assert.eq(2,fake.requestLog.size());
+        } finally {fake.stop();}
+    }
+    public void testInvalidCredentialsStopAfterOneCookieRetry() throws Exception {
+        FakeAnkai fake=new FakeAnkai();
+        try {
+            fake.rejectedCookieStatus=401;fake.respond("/api/auth/session",401,"application/json","{}");
+            AnkaiClient client=clientFor(fake);client.useSessionCookie("ankai_session=expired");
+            try{client.verifyConnection();Assert.fail("auth rejection required");}catch(AnkaiAuthException expected){}
+            Assert.eq(2,fake.requestLog.size());Assert.isTrue("cookie cleared",client.sessionCookie()==null);
+        } finally {fake.stop();}
+    }
+    public void testMutationIsNotReplayedOnExpiredCookie() throws Exception {
+        FakeAnkai fake=new FakeAnkai();
+        try {
+            fake.rejectedCookieStatus=401;
+            AnkaiClient client=clientFor(fake);client.useSessionCookie("ankai_session=expired");
+            try{client.synthesizeSpeech("Hallo");Assert.fail("auth rejection required");}catch(AnkaiAuthException expected){}
+            Assert.eq(1,fake.requestLog.size());
+        } finally {fake.stop();}
+    }
+
     private AnkaiClient clientFor(FakeAnkai fake) {
         return new AnkaiClient(new AnkaiEndpoint(fake.baseUrl()), "anka", "geheim");
     }

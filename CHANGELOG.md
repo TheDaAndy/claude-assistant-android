@@ -2,6 +2,11 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.7.1
+
+- Abgelaufene/abgewiesene Sitzungscookies bei lesenden Konto-, Projekt-, Verlaufs- und Live-Anfragen durch genau einen erneuten Versuch mit gespeicherten Zugangsdaten ersetzen. Neue Sitzung wird bei erfolgreichem Verbindungs-Refresh verschlüsselt gespeichert; Projektwahl und Gerätekopplung bleiben erhalten. Keine automatische Wiederholung von Uploads oder schreibenden Aktionen, keine Wiederholungsschleife bei falschen Zugangsdaten.
+- Veralteten Hauptansicht-Hinweis zur manuellen Aktivierung nach Neustart korrigiert: automatische Wiederaufnahme, Akku-Ausnahme und Android-Grenzen erklärt.
+
 ## 1.7.0
 
 - Aktivierten Gerätekanal nach Boot/erstem Entsperren und eigenem APK-Update wiederherstellen; persistente 15-Minuten-JobScheduler-Rückfallebene respektiert Pause und Widerruf. Android kann Starts/Jobs verzögern oder blockieren.
