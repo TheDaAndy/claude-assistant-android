@@ -2,6 +2,13 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.8.0
+
+- Native Entscheidungs-Inbox als App-Startseite mit offenen Karten und Verlauf; aus Einstellungen, Assist-Geste und Quick-Tile erreichbar. Ziele, Agenten und Konnektoren lassen sich über die verknüpfte Ankaï-Oberfläche verwalten.
+- Fragen beantworten, konkrete Aktionen freigeben/ablehnen, Änderungswünsche schreiben oder als Audio aufnehmen; Ergebnisse als hilfreich/nicht hilfreich bewerten. Risiko, Konfidenz, Quellen, Ablaufzeit und externe Auswirkungen bleiben sichtbar.
+- Jede Freigabe/Anpassung bindet die angezeigte Vorschlagsversion. Schreibanfragen werden bei Netzfehlern nicht automatisch wiederholt. Sprachfeedback erteilt keine Aktionsfreigabe. Kontocookies werden vor Schreibaufrufen lesend erneuert und ausschließlich verschlüsselt gespeichert.
+- Neue androidfreie Karten-/Multipartmodelle und HTTP-Vertragstests; 151 JVM-Tests. API35-Emulator gegen isolierten echten Ankaï-Backendstand geprüft; STT-Antwort im Test deterministisch, keine Aussage zur Mikrofon-/STT-Qualität auf echten Handys.
+
 ## 1.7.1
 
 - Abgelaufene/abgewiesene Sitzungscookies bei lesenden Konto-, Projekt-, Verlaufs- und Live-Anfragen durch genau einen erneuten Versuch mit gespeicherten Zugangsdaten ersetzen. Neue Sitzung wird bei erfolgreichem Verbindungs-Refresh verschlüsselt gespeichert; Projektwahl und Gerätekopplung bleiben erhalten. Keine automatische Wiederholung von Uploads oder schreibenden Aktionen, keine Wiederholungsschleife bei falschen Zugangsdaten.

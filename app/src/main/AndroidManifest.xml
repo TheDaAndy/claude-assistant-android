@@ -37,15 +37,14 @@
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/device_accessibility" />
         </service>
-        <!-- Main Activity (Launcher) -->
+        <activity android:name=".DecisionsActivity" android:exported="true" android:launchMode="singleTask">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <!-- Connection and device settings -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
 
         <!-- WICHTIG: Assist Activity - ermöglicht Registrierung als Standard-Assistent -->

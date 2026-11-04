@@ -10,6 +10,8 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+    <Button android:id="@+id/open_decisions" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Entscheidungen öffnen" android:textAllCaps="false" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

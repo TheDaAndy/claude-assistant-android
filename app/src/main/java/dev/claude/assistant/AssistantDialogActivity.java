@@ -45,6 +45,10 @@ public class AssistantDialogActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_assistant_dialog);
+        findViewById(R.id.open_decisions).setOnClickListener(v -> {
+            startActivity(new Intent(this, DecisionsActivity.class));
+            finish(); // Release overlay audio/recording when entering the inbox.
+        });
 
         inputField = findViewById(R.id.input_field);
         responseView = findViewById(R.id.response_view);

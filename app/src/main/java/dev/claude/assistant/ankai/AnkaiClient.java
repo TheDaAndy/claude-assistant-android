@@ -84,6 +84,47 @@ public final class AnkaiClient {
         }
     }
 
+    public PersonalDashboard loadPersonalDashboard() throws IOException {
+        HttpURLConnection connection=authenticatedGet("/api/personal","application/json",20000);
+        try { return PersonalDashboard.from(readJson(connection)); }
+        finally { connection.disconnect(); }
+    }
+
+    public Map<String,Object> respondToPersonalDecision(String id,int revision,String response,String message,String option) throws IOException {
+        String encoded=decisionId(id);
+        if(revision<1 || !("approve".equals(response)||"reject".equals(response)||"revise".equals(response)))throw new IllegalArgumentException("Ungültige Entscheidung");
+        String body="{\"revision\":"+revision+",\"response\":"+AnkaiJson.escape(response)+",\"message\":"+AnkaiJson.escape(message==null?"":message)+",\"option\":"+AnkaiJson.escape(option==null?"":option)+"}";
+        return personalMutation("/api/personal/decisions/"+encoded+"/respond","application/json; charset=utf-8",body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Map<String,Object> evaluatePersonalDecision(String id,boolean helpful) throws IOException {
+        String path="/api/personal/decisions/"+decisionId(id)+"/evaluate";
+        return personalMutation(path,"application/json; charset=utf-8",("{\"helpful\":"+helpful+"}").getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Map<String,Object> sendPersonalDecisionVoice(String id,int revision,String filename,String type,byte[] audio) throws IOException {
+        String path="/api/personal/decisions/"+decisionId(id)+"/voice";
+        DecisionVoiceRequest request=new DecisionVoiceRequest(revision,filename,type,audio);
+        return personalMutation(path,request.contentType(),request.body());
+    }
+
+    private Map<String,Object> personalMutation(String path,String type,byte[] body) throws IOException {
+        // Renew authentication with a read BEFORE sending; never replay a mutation.
+        verifyConnection();
+        HttpURLConnection connection=open(path,"POST");
+        connection.setDoOutput(true);connection.setRequestProperty("Content-Type",type);connection.setRequestProperty("Accept","application/json");
+        connection.setFixedLengthStreamingMode(body.length);
+        try {
+            try(OutputStream out=connection.getOutputStream()){out.write(body);}
+            return readJson(connection);
+        } finally { connection.disconnect(); }
+    }
+
+    private static String decisionId(String id){
+        if(id==null||!id.matches("[A-Za-z0-9_-]{1,160}"))throw new IllegalArgumentException("Ungültige Entscheidungs-ID");
+        return id;
+    }
+
     /** Sendet eine Aufnahme und liefert den gestarteten sichtbaren Chatlauf. */
     public VoiceResult sendVoice(VoiceRequest request, VoiceProgressListener listener) throws IOException {
         HttpURLConnection connection = open("/api/voice", "POST");
@@ -310,9 +351,14 @@ public final class AnkaiClient {
 
     /** Retry only a rejected cookie on a read, once. Never replay a mutation/upload. */
     private HttpURLConnection authenticatedGet(String path, String accept) throws IOException {
+        return authenticatedGet(path,accept,READ_TIMEOUT_MS);
+    }
+
+    private HttpURLConnection authenticatedGet(String path, String accept,int readTimeout) throws IOException {
         boolean hadCookie = sessionCookie != null;
         HttpURLConnection connection = open(path, "GET");
         connection.setRequestProperty("Accept", accept);
+        connection.setReadTimeout(readTimeout);
         try {
             int status = connection.getResponseCode();
             if (hadCookie && username != null && (status == 401 || status == 403)) {
@@ -320,6 +366,7 @@ public final class AnkaiClient {
                 sessionCookie = null;
                 connection = open(path, "GET");
                 connection.setRequestProperty("Accept", accept);
+                connection.setReadTimeout(readTimeout);
             }
             return connection;
         } catch (IOException failed) {

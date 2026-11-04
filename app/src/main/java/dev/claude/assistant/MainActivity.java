@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        findViewById(R.id.open_decisions).setOnClickListener(v -> startActivity(new Intent(this, DecisionsActivity.class)));
         bindViews();
         deviceStore = new DeviceLinkStore(this);
         devicePair = findViewById(R.id.device_pair);

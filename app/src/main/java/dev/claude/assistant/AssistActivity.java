@@ -63,6 +63,10 @@ public class AssistActivity extends Activity {
         );
 
         setContentView(R.layout.activity_assist);
+        findViewById(R.id.open_decisions).setOnClickListener(v -> {
+            startActivity(new Intent(this, DecisionsActivity.class));
+            finish(); // Release overlay audio/recording when entering the inbox.
+        });
         setFinishOnTouchOutside(true);
         findViewById(R.id.assist_scrim).setOnClickListener(v -> finish());
         findViewById(R.id.assist_panel).setOnClickListener(v -> {

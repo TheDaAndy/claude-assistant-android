@@ -47,6 +47,8 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <Button android:id="@+id/open_decisions" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Entscheidungen öffnen" android:textAllCaps="false" />
+
     <!-- Response Area -->
     <ScrollView
         android:layout_width="match_parent"
