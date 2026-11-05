@@ -16,6 +16,8 @@ public final class PersonalDecision {
     public final List<String> options, sourceTitles;
     public final Map<String,Object> payload;
     public final String actionType;
+    public final List<PersonalAttachment> attachments;
+    private final boolean attachmentsValid;
     public final Boolean helpful;
 
     PersonalDecision(Map<String,Object> row, String agentName, String goalTitle, List<String> sources) {
@@ -28,6 +30,14 @@ public final class PersonalDecision {
         Map<String,Object> action=AnkaiJson.object(row,"action");
         actionType=value(action,"type","");
         Map<String,Object> data=AnkaiJson.object(action,"payload");payload=data==null?Collections.emptyMap():Collections.unmodifiableMap(data);
+        List<PersonalAttachment> files=new ArrayList<>();boolean valid=true;int total=0;
+        for(Object item:AnkaiJson.list(payload,"attachments")){
+            try{if(!(item instanceof Map))throw new IllegalArgumentException();
+                @SuppressWarnings("unchecked") Map<String,Object> file=(Map<String,Object>)item;
+                PersonalAttachment attachment=new PersonalAttachment(file);files.add(attachment);total+=attachment.size;
+            }catch(IllegalArgumentException error){valid=false;}
+        }
+        attachments=Collections.unmodifiableList(files);attachmentsValid=valid&&files.size()<=8&&total<=20*1024*1024;
         external="action".equals(kind) && (Boolean.TRUE.equals(row.get("external")) || !INTERNAL.contains(actionType)
                 || !AnkaiJson.list(payload,"attendees").isEmpty() || Boolean.TRUE.equals(payload.get("sendInvitations")));
         List<String> choices=new ArrayList<>();
@@ -43,7 +53,7 @@ public final class PersonalDecision {
         }
         result=evidenceText==null?"":evidenceText;expiresAt=AnkaiJson.string(row,"expiresAt");
     }
-    public boolean canRespond(){return "proposed".equals(status)&&revision>0&&validScore(risk)&&validScore(confidence)
+    public boolean canRespond(){return attachmentsValid&&"proposed".equals(status)&&revision>0&&validScore(risk)&&validScore(confidence)
             &&("action".equals(kind)||"question".equals(kind)||"strategy".equals(kind));}
     public boolean isPending(){return Arrays.asList("proposed","needs_revision","approved","running","unknown").contains(status);}
     public boolean canEvaluate(){return Arrays.asList("done","failed","unknown","answered","rejected").contains(status);}

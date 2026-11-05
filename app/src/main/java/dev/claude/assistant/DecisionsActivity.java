@@ -106,6 +106,15 @@ public final class DecisionsActivity extends Activity {
         card.addView(label(d.agentName+(d.goalTitle.isEmpty()?"":"  /  "+d.goalTitle),12,MUTED,false));
         card.addView(label(d.body,16,TEXT,false));
         if("action".equals(d.kind)){String details=details(d);if(!details.isEmpty())card.addView(label(details,14,MUTED,false));}
+        if(!d.attachments.isEmpty()){
+            card.addView(label("Geplante Anhänge ("+d.attachments.size()+")",17,TEXT,true));
+            card.addView(label("Deine Freigabe gilt für genau diese Dateien und den angezeigten Text.",13,MUTED,false));
+            for(PersonalAttachment a:d.attachments){
+                card.addView(label(a.filename+"\n"+a.mimeType+" · "+a.size+" Bytes",14,TEXT,true));
+                TextView hash=label("SHA-256: "+a.sha256,11,MUTED,false);hash.setTextIsSelectable(true);card.addView(hash);
+                card.addView(button("Prüfen / Vorschau",false,()->previewAttachment(d,a)));
+            }
+        }
         LinearLayout scores=row();scores.setPadding(0,dp(8),0,dp(8));TextView risk=label("Risiko "+PersonalDecision.scoreLabel(d.risk)+" / 100",13,d.risk>=20?ACCENT:0xffb4dbac,true);TextView confidence=label("Konfidenz "+PersonalDecision.scoreLabel(d.confidence)+" %",13,MUTED,true);
         scores.addView(risk,new LinearLayout.LayoutParams(0,-2,1));scores.addView(confidence);card.addView(scores);
         if(d.external)card.addView(label("Externe Aktion · wird erst nach deiner Freigabe ausgeführt",13,ACCENT,true));
@@ -122,6 +131,40 @@ public final class DecisionsActivity extends Activity {
         }else if(!d.result.isEmpty())card.addView(label(d.result,14,TEXT,false));
         if(d.canEvaluate()){if(d.helpful!=null)card.addView(label(d.helpful?"Als hilfreich bewertet":"Als nicht hilfreich bewertet",13,MUTED,false));LinearLayout ratings=row();ratings.addView(button("Hilfreich",false,()->evaluate(d,true)),new LinearLayout.LayoutParams(0,-2,1));ratings.addView(button("Nicht hilfreich",false,()->evaluate(d,false)),new LinearLayout.LayoutParams(0,-2,1));card.addView(ratings);}
         return card;
+    }
+    private void previewAttachment(PersonalDecision decision,PersonalAttachment attachment){
+        AnkaiConnection connection=store.load();if(connection==null)return;
+        execute(connection,client->{
+            byte[] bytes=client.loadPersonalAttachment(decision.id,decision.revision,attachment);
+            android.graphics.Bitmap image;
+            if("application/pdf".equals(attachment.mimeType)){
+                File temp=File.createTempFile("attachment-preview-",".pdf",getCacheDir());
+                try{Files.write(temp.toPath(),bytes);
+                    try(android.os.ParcelFileDescriptor fd=android.os.ParcelFileDescriptor.open(temp,android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+                        android.graphics.pdf.PdfRenderer pdf=new android.graphics.pdf.PdfRenderer(fd);
+                        android.graphics.pdf.PdfRenderer.Page page=pdf.openPage(0)){
+                        image=android.graphics.Bitmap.createBitmap(1200,Math.max(1,Math.min(2000,1200*page.getHeight()/Math.max(1,page.getWidth()))),android.graphics.Bitmap.Config.ARGB_8888);
+                        image.eraseColor(Color.WHITE);page.render(image,null,null,android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    }
+                }finally{temp.delete();}
+            }else{
+                android.graphics.BitmapFactory.Options bounds=new android.graphics.BitmapFactory.Options();bounds.inJustDecodeBounds=true;
+                android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,bounds);
+                if(bounds.outWidth<1||bounds.outHeight<1)throw new java.io.IOException("Bild kann nicht gelesen werden.");
+                android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();options.inSampleSize=1;
+                while(bounds.outWidth/options.inSampleSize>2048||bounds.outHeight/options.inSampleSize>2048)options.inSampleSize*=2;
+                image=android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);
+                if(image==null)throw new java.io.IOException("Bild kann nicht gelesen werden.");
+            }
+            return image;
+        },result->{
+            LinearLayout content=column();content.setPadding(dp(16),dp(10),dp(16),dp(10));
+            content.addView(label("SHA-256 geprüft · "+attachment.size+" Bytes"+("application/pdf".equals(attachment.mimeType)?" · Vorschau Seite 1":""),13,Color.DKGRAY,false));
+            ImageView image=new ImageView(this);image.setImageBitmap((android.graphics.Bitmap)result);image.setAdjustViewBounds(true);image.setContentDescription(attachment.filename);content.addView(image,new LinearLayout.LayoutParams(-1,-2));
+            ScrollView scroll=new ScrollView(this);scroll.addView(content);
+            new android.app.AlertDialog.Builder(this).setTitle(attachment.filename).setView(scroll).setPositiveButton("Schließen",null).show();
+            showStatus("Anhang geladen und Inhalt geprüft.");
+        },"Anhang wird geprüft …");
     }
     private String details(PersonalDecision d){
         String[][] fields={{"provider","Anbieter"},{"recipient","Empfänger"},{"to","An"},{"subject","Betreff"},{"text","Nachricht"},{"title","Titel"},{"start","Beginn"},{"end","Ende"},{"due","Fällig"},{"location","Ort"},{"conditions","Bedingungen"},{"dataToSubmit","Zu übermittelnde Daten"},{"url","Website"},{"description","Beschreibung"},{"content","Wissen"},{"collectionUrl","Liste"},{"instruction","Auftrag"},{"hypothesis","Erwartete Verbesserung"},{"prompt","Neuer Agentenauftrag"}};

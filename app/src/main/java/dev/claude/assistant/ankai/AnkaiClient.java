@@ -96,6 +96,23 @@ public final class AnkaiClient {
         finally { connection.disconnect(); }
     }
 
+    public byte[] loadPersonalAttachment(String decision,int revision,PersonalAttachment attachment)throws IOException{
+        if(revision<1)throw new IllegalArgumentException("Ungültige Revision");
+        String path="/api/personal/decisions/"+decisionId(decision)+"/attachments/"+attachment.id+"?revision="+revision;
+        HttpURLConnection connection=authenticatedGet(path,attachment.mimeType,20000);
+        try{
+            int status=connection.getResponseCode();
+            if(status>=400)throw new IOException(status==409?"Vorschlag oder Anhang wurde geändert. Bitte aktualisieren.":"Anhang konnte nicht geladen werden ("+status+").");
+            String type=connection.getContentType();
+            if(type==null||!attachment.mimeType.equals(type.split(";")[0]))throw new IOException("Unerwarteter Dateityp.");
+            ByteArrayOutputStream buffer=new ByteArrayOutputStream();byte[] chunk=new byte[8192];int n;
+            try(InputStream input=connection.getInputStream()){
+                while((n=input.read(chunk))!=-1){if(buffer.size()+n>attachment.size)throw new IOException("Anhang überschreitet die freigegebene Größe.");buffer.write(chunk,0,n);}
+            }
+            byte[] bytes=buffer.toByteArray();attachment.verify(bytes);return bytes;
+        }finally{connection.disconnect();}
+    }
+
     public Map<String,Object> respondToPersonalDecision(String id,int revision,String response,String message,String option) throws IOException {
         String encoded=decisionId(id);
         if(revision<1 || !("approve".equals(response)||"reject".equals(response)||"revise".equals(response)))throw new IllegalArgumentException("Ungültige Entscheidung");

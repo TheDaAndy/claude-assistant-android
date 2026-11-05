@@ -1,3 +1,7 @@
+# 1.10.0
+
+- Persönliche Mailvorschläge zeigen konkrete Anhänge vor Freigabe. Authentifizierte Bildvorschau mit Größen- und SHA-256-Prüfung; PDF-Vorschau der ersten Seite.
+
 # Changelog
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.

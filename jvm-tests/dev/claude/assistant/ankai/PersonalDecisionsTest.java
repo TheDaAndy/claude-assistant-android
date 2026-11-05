@@ -64,4 +64,27 @@ public class PersonalDecisionsTest {
         AnkaiClient client=new AnkaiClient(new AnkaiEndpoint("http://127.0.0.1:1"),"andy","protected");
         try{client.respondToPersonalDecision("../secrets",1,"approve","","");Assert.fail("unsafe id");}catch(IllegalArgumentException expected){}
     }
+    private PersonalAttachment attachment(){return new PersonalAttachment(AnkaiJson.parseObject("{\"id\":\"12345678-1234-1234-1234-123456789abc\",\"filename\":\"front.jpg\",\"mimeType\":\"image/jpeg\",\"size\":3,\"sha256\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"}"));}
+    public void testAttachmentRejectsChangedBytesAndWrongSize()throws Exception{
+        PersonalAttachment a=attachment();a.verify("abc".getBytes(StandardCharsets.UTF_8));
+        for(String changed:new String[]{"abd","abcd"})try{a.verify(changed.getBytes(StandardCharsets.UTF_8));Assert.fail("changed attachment");}catch(java.io.IOException expected){}
+    }
+    public void testAttachmentAuthenticatedReadUsesExactRevision()throws Exception{
+        FakeAnkai fake=new FakeAnkai();try{
+            PersonalAttachment a=attachment();
+            fake.respond("/api/personal/decisions/d1/attachments/"+a.id,200,"image/jpeg","abc");
+            AnkaiClient client=new AnkaiClient(new AnkaiEndpoint(fake.baseUrl()),"andy","protected");
+            Assert.eq(3,client.loadPersonalAttachment("d1",7,a).length);
+            Assert.isTrue("exact revision","revision=7".equals(fake.lastQuery));
+        }finally{fake.stop();}
+    }
+    public void testAttachmentConflictAndTypeMismatchStopPreview()throws Exception{
+        FakeAnkai fake=new FakeAnkai();try{
+            PersonalAttachment a=attachment();AnkaiClient client=new AnkaiClient(new AnkaiEndpoint(fake.baseUrl()),"andy","protected");
+            for(int status:new int[]{409,200}){
+                fake.respond("/api/personal/decisions/d1/attachments/"+a.id,status,"text/html","abc");
+                try{client.loadPersonalAttachment("d1",2,a);Assert.fail("unsafe preview");}catch(java.io.IOException expected){}
+            }
+        }finally{fake.stop();}
+    }
 }

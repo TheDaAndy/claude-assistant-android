@@ -23,6 +23,7 @@ public class FakeAnkai {
     public final List<String> authHeaders = new ArrayList<>();
     public final List<String> cookieHeaders = new ArrayList<>();
     public volatile String lastBody = "";
+    public volatile String lastQuery = "";
     public volatile boolean requireAuth = true;
     public volatile int rejectedCookieStatus;
 
@@ -51,6 +52,7 @@ public class FakeAnkai {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
+            lastQuery = exchange.getRequestURI().getRawQuery();
             requestLog.add(exchange.getRequestMethod() + " " + path);
             String auth = exchange.getRequestHeaders().getFirst("Authorization");
             authHeaders.add(auth == null ? "" : auth);
