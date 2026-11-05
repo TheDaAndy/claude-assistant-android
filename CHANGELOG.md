@@ -2,6 +2,13 @@
 
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
+## 1.9.0
+
+- Native Android-Benachrichtigungen für ungelesene Einträge aus `/api/notifications`, unabhängig von Gerätekopplung/Fernsteuerung. In Einstellungen lokal einschaltbar, inklusive Android-Berechtigungsabfrage und eigenem Benachrichtigungskanal.
+- Sichtbarer Hintergrunddienst prüft alle 30 s; persistenter 15-Minuten-Systemjob als Rückfallebene, Wiederaufnahme nach Boot/App-Update. Ohne Wake-Lock; Doze, Force-Stop, Netz- und OEM-Beschränkungen können die Zustellung verzögern. Serverseitige Liste umfasst aktuell die neuesten 50 Einträge.
+- Verschlüsselte, kontogetrennte Zustellbelege verhindern erneute Meldungen nach Neustart oder Wegwischen; fehlgeschlagene Abrufe werden erneut versucht. Gelesene Meldungen lösen keine neue Benachrichtigung aus. Trennen schaltet die Funktion ab und entfernt angezeigte Hinweise.
+- Tippen öffnet das verknüpfte Ankaï-Ziel; externe URLs/Intent-Schemata werden abgefangen, Kontoänderungen geprüft und Sperrbildschirm-Inhalte als privat markiert. Keine Zugangsdaten in Browser-Links.
+
 ## 1.8.0
 
 - Native Entscheidungs-Inbox als App-Startseite mit offenen Karten und Verlauf; aus Einstellungen, Assist-Geste und Quick-Tile erreichbar. Ziele, Agenten und Konnektoren lassen sich über die verknüpfte Ankaï-Oberfläche verwalten.

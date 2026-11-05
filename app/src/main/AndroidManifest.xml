@@ -109,6 +109,18 @@
         </receiver>
         <service android:name=".remote.DeviceRecoveryJob" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <activity android:name=".notifications.NotificationOpenActivity" android:exported="false" />
+        <service android:name=".notifications.NotificationService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled Ankai inbox notification delivery" />
+        </service>
+        <service android:name=".notifications.NotificationRecoveryJob" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver android:name=".notifications.NotificationRecoveryReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Floating Widget Service -->
         <service
             android:name=".FloatingWidgetService"

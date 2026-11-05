@@ -84,6 +84,12 @@ public final class AnkaiClient {
         }
     }
 
+    public List<AnkaiNotification> listNotifications() throws IOException {
+        HttpURLConnection connection = authenticatedGet("/api/notifications", "application/json", 20000);
+        try { return AnkaiNotification.parse(readJson(connection)); }
+        finally { connection.disconnect(); }
+    }
+
     public PersonalDashboard loadPersonalDashboard() throws IOException {
         HttpURLConnection connection=authenticatedGet("/api/personal","application/json",20000);
         try { return PersonalDashboard.from(readJson(connection)); }

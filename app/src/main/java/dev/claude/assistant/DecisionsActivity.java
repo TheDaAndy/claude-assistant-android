@@ -59,7 +59,7 @@ public final class DecisionsActivity extends Activity {
         status=label("",14,MUTED,false);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);root.addView(status);showStatus("");
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);cards=column();cards.setPadding(0,dp(10),0,dp(24));scroll.addView(cards);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
     }
-    @Override protected void onResume(){super.onResume();resumed=true;load(true);handler.postDelayed(poll,15000);}
+    @Override protected void onResume(){super.onResume();dev.claude.assistant.notifications.NotificationSync.resume(this);resumed=true;load(true);handler.postDelayed(poll,15000);}
     @Override protected void onPause(){resumed=false;handler.removeCallbacks(poll);discardRecording();super.onPause();}
     @Override protected void onDestroy(){generation++;handler.removeCallbacksAndMessages(null);discardRecording();network.shutdown();super.onDestroy();}
     @Override protected void onSaveInstanceState(Bundle out){super.onSaveInstanceState(out);out.putBoolean("history",history);save(out,"draft",drafts);save(out,"choice",choices);}

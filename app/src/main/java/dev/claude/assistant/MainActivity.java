@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
     private TextView connectionError;
     private ProgressBar connectionProgress;
     private Switch autoplaySwitch;
+    private Switch notificationsSwitch;
+    private boolean renderingNotifications;
     private Button defaultAssistantButton;
     private PlaybackSettings playbackSettings;
     private DeviceLinkStore deviceStore;
@@ -69,6 +71,19 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         findViewById(R.id.open_decisions).setOnClickListener(v -> startActivity(new Intent(this, DecisionsActivity.class)));
         bindViews();
+        notificationsSwitch = findViewById(R.id.ankai_notifications);
+        renderNotifications();
+        notificationsSwitch.setOnCheckedChangeListener((button, enabled) -> {
+            if (renderingNotifications) return;
+            if (enabled && !getSystemService(NotificationManager.class).areNotificationsEnabled()) {
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 8513);
+                else startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
+                renderNotifications(); return;
+            }
+            dev.claude.assistant.notifications.NotificationSync.setEnabled(this, enabled);
+            renderNotifications();
+        });
         deviceStore = new DeviceLinkStore(this);
         devicePair = findViewById(R.id.device_pair);
         deviceRevoke = findViewById(R.id.device_revoke);
@@ -109,6 +124,8 @@ public class MainActivity extends Activity {
                 connectionError.setText("Bitte zuerst die Gerätekopplung widerrufen.");
                 connectionError.setVisibility(View.VISIBLE); return;
             }
+            dev.claude.assistant.notifications.NotificationSync.setEnabled(this, false);
+            renderNotifications();
             runNetwork(presenter::disconnect);
         });
         projectSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(position -> {
@@ -185,6 +202,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        renderNotifications();
+        dev.claude.assistant.notifications.NotificationSync.resume(this);
         if (deviceStore != null) {
             boolean active = false;
             android.app.ActivityManager manager = getSystemService(android.app.ActivityManager.class);
@@ -203,6 +222,23 @@ public class MainActivity extends Activity {
                     ? R.string.default_assistant_active
                     : R.string.default_assistant_setup);
             defaultAssistantButton.setEnabled(!selected);
+        }
+    }
+
+    private void renderNotifications() {
+        if (notificationsSwitch == null) return;
+        renderingNotifications = true;
+        notificationsSwitch.setChecked(dev.claude.assistant.notifications.NotificationSync.enabled(this)
+                && getSystemService(NotificationManager.class).areNotificationsEnabled());
+        renderingNotifications = false;
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request == 8513) {
+            if (results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED)
+                dev.claude.assistant.notifications.NotificationSync.setEnabled(this, true);
+            renderNotifications();
         }
     }
 
@@ -252,6 +288,7 @@ public class MainActivity extends Activity {
             return;
         }
 
+        dev.claude.assistant.notifications.NotificationSync.resume(this);
         connectionStatus.setText(getString(R.string.ankai_connected_as, state.username, state.baseUrl));
         List<ProjectChoice> choices = new ArrayList<>();
         choices.add(new ProjectChoice(null, getString(R.string.ankai_no_default_project)));
