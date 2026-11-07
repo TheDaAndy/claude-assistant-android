@@ -13,7 +13,7 @@ public final class UiControlActivity extends Activity {
     @Override public void onCreate(Bundle state){super.onCreate(state);store=new DeviceLinkStore(this);
         ScrollView sc=new ScrollView(this);sc.setBackgroundColor(Color.rgb(26,26,26));LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(dp(16),dp(16),dp(16),dp(24));sc.addView(l);setContentView(sc);
         l.addView(text("Handy steuern ohne Root",24));
-        l.addView(text("Ankaï Assistant vermittelt zwischen deinem Server und der Android-Bedienungshilfe. Kein Shizuku, Root oder WLAN-Debugging nötig.",16));
+        l.addView(text("Ankaï Assistant vermittelt zwischen deinem Server und der Android-Bedienungshilfe. Kein Root oder WLAN-Debugging nötig.",16));
         l.addView(text("1. In Android „Ankaï-Gerätesteuerung“ aktivieren.\n2. Unten die Fernsteuerung bestätigen.\n3. Zurück zur Kopplung und den Gerätekanal einschalten.",16));
         Button settings=new Button(this);settings.setText("Bedienungshilfe in Android öffnen");settings.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));l.addView(settings);
         battery=new Button(this);battery.setOnClickListener(v->{

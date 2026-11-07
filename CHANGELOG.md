@@ -4,6 +4,10 @@
 
 # Changelog
 
+## 1.11.0 (Build 24)
+- Replace the external Shizuku dependency with locally paired TLS Wireless Debugging, encrypted ADB identity storage, explicit on-device consent, UID verification and bounded shell-v2 execution.
+
+
 Alle nennenswerten Aenderungen an der Claude/Ankai Assistant Android-App.
 
 ## 1.9.0

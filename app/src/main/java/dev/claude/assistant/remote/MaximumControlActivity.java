@@ -1,59 +1,80 @@
 package dev.claude.assistant.remote;
+
 import android.app.*;
-import android.os.Bundle;
+import android.os.*;
 import android.content.*;
-import android.net.Uri;
 import android.provider.Settings;
 import android.graphics.Color;
+import android.text.InputType;
 import android.widget.*;
-import rikka.shizuku.Shizuku;
-import android.content.pm.PackageManager;
+import java.util.concurrent.*;
 
+/** Local pairing consent stays on the phone. Pairing codes are never persisted or sent to Ankai. */
 public final class MaximumControlActivity extends Activity {
     private DeviceLinkStore store;
     private TextView status;
     private CheckBox maximum;
-    private Button permission;
-    private boolean rendering;
-    private final Shizuku.OnBinderReceivedListener received=()->runOnUiThread(this::refresh);
-    private final Shizuku.OnBinderDeadListener dead=()->runOnUiThread(this::refresh);
-    private final Shizuku.OnRequestPermissionResultListener result=(code,value)->runOnUiThread(this::refresh);
+    private EditText pairingPort,code,connectionPort;
+    private Button pair,connect,disconnect;
+    private boolean rendering,busy;
+    private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
     private TextView text(String value,int size){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(Color.WHITE);t.setPadding(0,dp(8),0,dp(8));return t;}
+    private EditText field(LinearLayout l,String label,boolean secret){
+        l.addView(text(label,16));EditText e=new EditText(this);e.setTextColor(Color.WHITE);e.setSingleLine(true);
+        e.setInputType(InputType.TYPE_CLASS_NUMBER|(secret?InputType.TYPE_NUMBER_VARIATION_PASSWORD:0));
+        e.setSaveEnabled(false);if(secret)e.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);l.addView(e);return e;
+    }
+    private Button button(LinearLayout l,String title,Runnable action){Button b=new Button(this);b.setText(title);b.setOnClickListener(v->action.run());l.addView(b);return b;}
     @Override public void onCreate(Bundle state){
         super.onCreate(state);store=new DeviceLinkStore(this);
         ScrollView scroll=new ScrollView(this);scroll.setBackgroundColor(Color.rgb(26,26,26));LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(dp(16),dp(16),dp(16),dp(24));scroll.addView(l);setContentView(scroll);
-        l.addView(text("Maximale Gerätefreigabe",24));
-        l.addView(text("Ankaï nutzt die tatsächlichen Shizuku-Rechte lokal auf dem Handy. Der Server braucht keine direkte WLAN-Verbindung zum Handy.",16));
-        l.addView(text("1. Shizuku installieren/öffnen.\n2. Dort über WLAN-Debugging koppeln und Shizuku starten.\n3. Ankaï in Shizuku erlauben.\n4. Maximalmodus freigeben und den Gerätekanal aktivieren.",16));
-        Button manager=new Button(this);manager.setText("Shizuku installieren / öffnen");manager.setOnClickListener(v->{Intent i=getPackageManager().getLaunchIntentForPackage("moe.shizuku.privileged.api");if(i==null)i=new Intent(Intent.ACTION_VIEW,Uri.parse("https://shizuku.rikka.app/download/"));startActivity(i);});l.addView(manager);
-        Button developer=new Button(this);developer.setText("Entwickleroptionen öffnen");developer.setOnClickListener(v->{try{startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));}catch(ActivityNotFoundException unavailable){startActivity(new Intent(Settings.ACTION_SETTINGS));}});l.addView(developer);
+        l.addView(text("Wireless Debugging",24));
+        l.addView(text("Direkt in Ankaï integriert · keine zusätzliche App nötig. Android 11 oder neuer und aktiviertes WLAN-Debugging sind erforderlich. Die Verbindung bleibt lokal auf diesem Handy.",16));
+        button(l,"Entwickleroptionen öffnen",()->{try{startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));}catch(ActivityNotFoundException e){startActivity(new Intent(Settings.ACTION_SETTINGS));}});
+        l.addView(text("1. WLAN-Debugging einschalten und ›Gerät mit Kopplungscode koppeln‹ öffnen. Einstellungen und Ankaï im geteilten Bildschirm verwenden, damit der Code gültig bleibt.",16));
+        pairingPort=field(l,"Kopplungsport",false);code=field(l,"Sechsstelliger Kopplungscode",true);
+        pair=button(l,"Mit diesem Handy koppeln",()->{
+            final int port;try{port=port(pairingPort);}catch(Exception e){status.setText("Kopplungsport muss zwischen 1 und 65535 liegen.");return;}
+            String pin=code.getText().toString();code.setText("");
+            if(!pin.matches("[0-9]{6}")){status.setText("Bitte den sechsstelligen Kopplungscode eingeben.");return;}
+            work(()->{if(!WirelessAdbConnection.get(this).pair("127.0.0.1",port,pin))throw new Exception();},"Gekoppelt. Jetzt den Verbindungsport aus der WLAN-Debugging-Hauptseite eingeben.");
+        });
+        l.addView(text("2. Zur WLAN-Debugging-Hauptseite zurückkehren. Der dortige Port bei ›IP-Adresse und Port‹ ist der Verbindungsport und unterscheidet sich vom Kopplungsport.",16));
+        connectionPort=field(l,"Verbindungsport",false);
+        connect=button(l,"Lokal verbinden",()->{
+            final int port;try{port=port(connectionPort);}catch(Exception e){status.setText("Verbindungsport muss zwischen 1 und 65535 liegen.");return;}
+            work(()->{WirelessAdbConnection c=WirelessAdbConnection.get(this);c.disconnect();if(!c.connect("127.0.0.1",port))throw new Exception();c.verifyShell();},"Verbunden · ADB/SHELL (UID 2000)");
+        });
+        disconnect=button(l,"Verbindung trennen",()->{pause();work(()->WirelessAdbConnection.get(this).disconnect(),"Verbindung getrennt.");});
         status=text("",16);l.addView(status);
-        permission=new Button(this);permission.setText("Ankaï in Shizuku freigeben");permission.setOnClickListener(v->{try{Shizuku.requestPermission(1301);}catch(Exception unavailable){refresh();}});l.addView(permission);
-        maximum=new CheckBox(this);maximum.setText("Maximalmodus für die Gerätefreigabe erlauben");maximum.setTextColor(Color.WHITE);l.addView(maximum);
+        maximum=new CheckBox(this);maximum.setText("ADB-Zugriff für die Gerätefreigabe erlauben");maximum.setTextColor(Color.WHITE);l.addView(maximum);
         maximum.setOnCheckedChangeListener((b,on)->{
             if(rendering)return;
             if(!on){pause();store.maximum(false,-1);refresh();return;}
-            int uid=ShizukuBridge.privilegeUid();
-            if(uid!=0 && uid!=2000){refresh();return;}
-            new AlertDialog.Builder(this).setTitle("Maximalfreigabe erlauben?")
-                .setMessage("Freigabe: "+store.scopeLabel()+"\n\n"+(uid==0?"ROOT: Ankaï erhält die verfügbaren Root-Rechte. Auch private App-Daten und weitreichende Änderungen können zugänglich sein.":"ADB/SHELL: Ankaï kann Logs lesen, Apps/Bedienung steuern und mit diesen Rechten Einstellungen ändern. Android-/SELinux-Beschränkungen bleiben bestehen; dies ist kein Root-Zugang.")+"\n\nBefehle werden ohne Einzelbestätigung ausgeführt, soweit dein aktueller Auftrag sie erlaubt. Der sichtbare Gerätekanal muss aktiv sein. Du kannst jederzeit pausieren oder widerrufen.")
-                .setNegativeButton("Abbrechen",(d,w)->refresh()).setPositiveButton("Freigeben",(d,w)->{pause();store.maximum(true,uid);refresh();})
+            if(!WirelessAdbBridge.authorized()){refresh();return;}
+            new AlertDialog.Builder(this).setTitle("ADB-Zugriff erlauben?")
+                .setMessage("Freigabe: "+store.scopeLabel()+"\n\nADB/SHELL: Ankaï kann Logs lesen, Apps und Bedienung steuern sowie Einstellungen ändern. Android- und SELinux-Beschränkungen bleiben bestehen. Private App-Daten sind damit nicht allgemein zugänglich.\n\nBefehle laufen im Rahmen deines Auftrags ohne Einzelbestätigung. Der sichtbare Gerätekanal muss aktiv sein. Du kannst jederzeit pausieren oder widerrufen.")
+                .setNegativeButton("Abbrechen",(d,w)->refresh()).setPositiveButton("Freigeben",(d,w)->{pause();store.maximum(true,2000);refresh();})
                 .setOnCancelListener(d->refresh()).show();
         });
-        l.addView(text("Ein klassischer Geräteadministrator ersetzt keine ADB-Rechte. Ohne Root muss Shizuku nach einem Handy-Neustart erneut gestartet werden. Für diese App gibt es keinen automatischen Root- oder Device-Owner-Zugang.",14));
-        Button done=new Button(this);done.setText("Zurück zur Kopplung");done.setOnClickListener(v->finish());l.addView(done);
-        Shizuku.addBinderReceivedListenerSticky(received);Shizuku.addBinderDeadListener(dead);Shizuku.addRequestPermissionResultListener(result);refresh();
+        l.addView(text("Nach einem Neustart oder WLAN-Wechsel kann eine neue Verbindung mit geändertem Port nötig sein. Nach Prozessende erneut verbinden. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Kein Root-Zugang. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
+        button(l,"Zurück zur Gerätefreigabe",this::finish);refresh();
     }
-    private void pause(){store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));}
+    private int port(EditText input){int p=Integer.parseInt(input.getText().toString().trim());if(p<1||p>65535)throw new IllegalArgumentException();return p;}
+    private interface Job{void run()throws Exception;}
+    private void work(Job job,String success){
+        if(busy)return;busy=true;refresh();status.setText("Verbindung wird bearbeitet …");
+        worker.submit(()->{boolean ok=false;try{job.run();ok=true;}catch(Exception ignored){}final boolean passed=ok;
+            runOnUiThread(()->{if(isDestroyed())return;busy=false;refresh();status.setText(passed?success:"Verbindung fehlgeschlagen. WLAN-Debugging, aktuellen Port und gegebenenfalls neuen Kopplungscode prüfen.");DevicePresenceMonitor.changed();});});
+    }
+    private void pause(){store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));DevicePresenceMonitor.changed();}
     private void refresh(){
-        if(status==null || isDestroyed())return;
-        boolean running=ShizukuBridge.running(),authorized=ShizukuBridge.authorized();int uid=ShizukuBridge.privilegeUid();
-        status.setText(!running?"Shizuku nicht gestartet · erst Schritt 1 und 2 abschließen":!authorized?"Shizuku läuft · Ankaï braucht deine Freigabe":uid==0?"Shizuku bereit · ROOT (UID 0)":"Shizuku bereit · ADB/SHELL (UID "+uid+")");
-        if(authorized && store.maximumRequested() && !store.maximumGranted(uid))status.append("\nRechtestufe geändert · Maximalfreigabe erneut bestätigen");
-        permission.setEnabled(running && !authorized);rendering=true;
-        maximum.setChecked(store.maximumGranted(uid));maximum.setEnabled(authorized && store.id()!=null);rendering=false;
+        if(status==null||isDestroyed())return;boolean ready=WirelessAdbBridge.authorized(),supported=Build.VERSION.SDK_INT>=30;
+        status.setText(!supported?"Wireless Debugging benötigt Android 11 oder neuer.":ready?"Verbunden · ADB/SHELL (UID 2000)":"Nicht verbunden · lokal koppeln und verbinden.");
+        pair.setEnabled(supported&&!busy);connect.setEnabled(supported&&!busy);disconnect.setEnabled(!busy&&WirelessAdbBridge.running());
+        rendering=true;maximum.setChecked(store.maximumGranted(ready?2000:-1));maximum.setEnabled(ready&&!busy&&store.id()!=null);rendering=false;
     }
     @Override public void onResume(){super.onResume();refresh();}
-    @Override public void onDestroy(){Shizuku.removeBinderReceivedListener(received);Shizuku.removeBinderDeadListener(dead);Shizuku.removeRequestPermissionResultListener(result);super.onDestroy();}
+    @Override public void onDestroy(){code.setText("");worker.shutdownNow();super.onDestroy();}
 }

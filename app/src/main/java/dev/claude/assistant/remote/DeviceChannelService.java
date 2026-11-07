@@ -29,13 +29,13 @@ public final class DeviceChannelService extends Service {
         }
     };
     private DeviceLinkStore store;
-    private ShizukuBridge bridge;
+    private WirelessAdbBridge bridge;
     private DevicePresenceMonitor presence;
     private final java.util.Set<Integer> actionNotifications = new java.util.HashSet<>();
     public static int notificationId(String id) { return 10000 + (id.hashCode() & 0x3fffffff); }
 
     @Override public void onCreate() {
-        super.onCreate(); store = new DeviceLinkStore(this); bridge=new ShizukuBridge(this);
+        super.onCreate(); store = new DeviceLinkStore(this); bridge=new WirelessAdbBridge(this);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL, "Ankaï-Gerätezugriff", NotificationManager.IMPORTANCE_LOW));
     }
@@ -138,15 +138,15 @@ public final class DeviceChannelService extends Service {
         }
         JSONObject data = new JSONObject();
         if("remote_shell".equals(action)) {
-            int uid=ShizukuBridge.privilegeUid();
-            if(!store.maximumGranted(uid)||!ShizukuBridge.authorized())return new JSONObject().put("status","error").put("data","Maximalfreigabe/Shizuku auf dem Handy nicht aktiv.");
+            int uid=WirelessAdbBridge.privilegeUid();
+            if(!store.maximumGranted(uid)||!WirelessAdbBridge.authorized())return new JSONObject().put("status","error").put("data","Maximalfreigabe/Wireless Debugging auf dem Handy nicht aktiv.");
             String command=c.getString("command");int timeout=c.optInt("timeoutSeconds",15);
             dev.claude.assistant.ankai.PrivilegedCommandPolicy.validate(command,timeout);
             // Durable uncertainty marker is written before any privileged side effect.
             store.cacheResult(c.getString("id"),new JSONObject().put("status","error").put("data","Befehlsausführung unterbrochen; Ergebnis unbekannt. Nicht automatisch wiederholen."));
             if(!running||!store.enabled())return new JSONObject().put("status","error").put("data","Kanal pausiert.");
             try {return bridge.execute(command,timeout);}
-            catch(Exception unavailable){return new JSONObject().put("status","error").put("data","Shizuku-Ausführung fehlgeschlagen; Ergebnis unbekannt. Nicht automatisch wiederholen.");}
+            catch(Exception unavailable){return new JSONObject().put("status","error").put("data","Wireless Debugging-Ausführung fehlgeschlagen; Ergebnis unbekannt. Nicht automatisch wiederholen.");}
         }
         if ("device_info".equals(action)) {
             data.put("manufacturer", Build.MANUFACTURER).put("model", Build.MODEL)
@@ -163,8 +163,8 @@ public final class DeviceChannelService extends Service {
                     .put("notificationsEnabled", getSystemService(NotificationManager.class).areNotificationsEnabled())
                     .put("airplaneMode", Settings.Global.getInt(getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, 0) == 1)
                     .put("automaticTime", Settings.Global.getInt(getContentResolver(), Settings.Global.AUTO_TIME, 0) == 1)
-                    .put("adbAvailable",ShizukuBridge.authorized()).put("shizukuRunning",ShizukuBridge.running())
-                    .put("maximumRequested",store.maximumRequested()).put("remoteShellEnabled",store.maximumGranted(ShizukuBridge.privilegeUid()) && ShizukuBridge.authorized()).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
+                    .put("adbAvailable",WirelessAdbBridge.authorized()).put("wirelessDebuggingConnected",WirelessAdbBridge.running())
+                    .put("maximumRequested",store.maximumRequested()).put("remoteShellEnabled",store.maximumGranted(WirelessAdbBridge.privilegeUid()) && WirelessAdbBridge.authorized()).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
         } else {
             if (!getSystemService(NotificationManager.class).areNotificationsEnabled())
                 return new JSONObject().put("status", "error").put("data", "Benachrichtigungen deaktiviert");

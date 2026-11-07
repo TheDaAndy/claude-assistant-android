@@ -1,0 +1,1 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.claude.assistant.qa.wireless"><uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34"/><application android:label="Ankai wireless QA"/><instrumentation android:name="dev.claude.assistant.qa.WirelessInstrumentation" android:targetPackage="dev.claude.assistant"/></manifest>
