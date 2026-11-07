@@ -33,6 +33,7 @@ public final class DeviceLinkStore {
     public void uiGranted(boolean value){store.put("device.uiGranted",String.valueOf(value));}
     public boolean uiResume(){return "true".equals(store.get("device.uiResume"));}
     public void uiResume(boolean value){store.put("device.uiResume",String.valueOf(value));}
+    boolean wirelessIdentityAvailable(){return store.get("wireless_adb_identity_v1")!=null;}
     public boolean maximumRequested(){return "true".equals(store.get("device.maximum"));}
     public boolean maximumGranted(int uid){return maximumRequested() && String.valueOf(uid).equals(store.get("device.maximumUid"));}
     public void maximum(boolean value,int uid){store.put("device.maximum",String.valueOf(value));if(value)store.put("device.maximumUid",String.valueOf(uid));else store.remove("device.maximumUid");}

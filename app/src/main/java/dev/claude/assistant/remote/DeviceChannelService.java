@@ -26,11 +26,13 @@ public final class DeviceChannelService extends Service {
         @Override public void onAvailable(android.net.Network network){
             synchronized(reconnect){networkGeneration++;reconnect.notifyAll();}
             DevicePresenceMonitor.changed();
+            WirelessAdbRecovery recovery=adbRecovery;if(recovery!=null)recovery.networkAvailable();
         }
     };
     private DeviceLinkStore store;
     private WirelessAdbBridge bridge;
     private DevicePresenceMonitor presence;
+    private WirelessAdbRecovery adbRecovery;
     private final java.util.Set<Integer> actionNotifications = new java.util.HashSet<>();
     public static int notificationId(String id) { return 10000 + (id.hashCode() & 0x3fffffff); }
 
@@ -50,6 +52,7 @@ public final class DeviceChannelService extends Service {
         running = true;
         connectivity=getSystemService(android.net.ConnectivityManager.class);
         try{connectivity.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){}
+        adbRecovery=new WirelessAdbRecovery(this,store);adbRecovery.start();
         presence=new DevicePresenceMonitor(this,store,this::applyDevice);presence.start(); worker.execute(this::loop); return START_STICKY;
     }
     private Notification foregroundNotification() {
@@ -185,6 +188,7 @@ public final class DeviceChannelService extends Service {
     }
     @Override public void onDestroy() {
         if(store!=null && !store.enabled())PackageInstallManager.cancelAll(this,"Gerätekanal pausiert");
+        if(adbRecovery!=null)adbRecovery.close();
         if(presence!=null)presence.close();
         running = false;
         synchronized(reconnect){reconnect.notifyAll();}

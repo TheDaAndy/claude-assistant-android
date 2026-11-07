@@ -4,6 +4,10 @@
 
 # Changelog
 
+## 1.11.2 (Build 26)
+- Restore an already paired and consented local Wireless Debugging connection inside the active device service after process restart and network return, with bounded discovery/backoff and pause/revocation checks. Wait for credential storage unlock before inbox recovery.
+
+
 ## 1.11.1 (Build 25)
 - Pair Wireless Debugging from an inline notification reply while Android Settings stays open, with local port discovery and automatic connection. Split screen is no longer required.
 

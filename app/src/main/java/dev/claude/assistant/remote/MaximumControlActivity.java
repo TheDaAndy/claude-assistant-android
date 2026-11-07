@@ -53,7 +53,7 @@ public final class MaximumControlActivity extends Activity {
                 .setNegativeButton("Abbrechen",(d,w)->refresh()).setPositiveButton("Freigeben",(d,w)->{pause();store.maximum(true,2000);refresh();})
                 .setOnCancelListener(d->refresh()).show();
         });
-        l.addView(text("Nach einem Neustart oder WLAN-Wechsel kann eine neue Verbindung mit geändertem Port nötig sein. Nach Prozessende erneut verbinden. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Kein Root-Zugang. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
+        l.addView(text("Bei aktivem Gerätekanal und erteiltem ADB-Zugriff wird die bestehende Kopplung nach Prozessende, Neustart und WLAN-Rückkehr automatisch erneut verbunden, sofern Android WLAN-Debugging freigibt. Bei ausgeschaltetem WLAN-Debugging musst du es in Android wieder einschalten. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Kein Root-Zugang. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
         button(l,"Zurück zur Gerätefreigabe",this::finish);refresh();
     }
     private void startNotificationPairing(){

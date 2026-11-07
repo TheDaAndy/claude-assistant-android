@@ -10,6 +10,27 @@ public final class WirelessInstrumentation extends Instrumentation {
  @Override public void onCreate(Bundle b){args=b;start();}
  @Override public void onStart(){Bundle result=new Bundle();try{
   Context c=getTargetContext();
+  if("recovery-seed".equals(args.getString("mode"))){
+   DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-recovery","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,2000);store.enabled(true);Thread.sleep(1000);
+   result.putString("result","PASS: paired identity and local consent persist for next process");finish(-1,result);return;
+  }
+  if("recovery".equals(args.getString("mode"))){
+   if(WirelessAdbBridge.running())throw new Exception("Expected a fresh process without ADB transport");
+   Class<?> cls=Class.forName("dev.claude.assistant.remote.WirelessAdbRecovery");
+   java.lang.reflect.Constructor<?> ctor=cls.getDeclaredConstructor(Context.class,DeviceLinkStore.class);ctor.setAccessible(true);
+   Method start=cls.getDeclaredMethod("start"),close=cls.getDeclaredMethod("close"),attempt=cls.getDeclaredMethod("attempt");start.setAccessible(true);close.setAccessible(true);attempt.setAccessible(true);
+   DeviceLinkStore store=new DeviceLinkStore(c);if(!store.enabled()||!store.maximumGranted(2000))throw new Exception("Missing persisted grant enabled="+store.enabled()+" maximum="+store.maximumGranted(2000)+" linked="+(store.id()!=null));
+   Object recovery=ctor.newInstance(c,store);start.invoke(recovery);
+   try{
+    long until=android.os.SystemClock.elapsedRealtime()+45000;while(!WirelessAdbBridge.authorized()&&android.os.SystemClock.elapsedRealtime()<until)Thread.sleep(200);
+    if(!WirelessAdbBridge.authorized())throw new Exception("Fresh-process automatic reconnect failed");
+    JSONObject data=new WirelessAdbBridge(c).execute("printf recovered",3).getJSONObject("data");if(!"recovered".equals(data.getString("stdout")))throw new Exception("Recovery shell failed");
+   }finally{close.invoke(recovery);}
+   Class<?> connection=Class.forName("dev.claude.assistant.remote.WirelessAdbConnection");Method get=connection.getDeclaredMethod("get",Context.class);get.setAccessible(true);Object manager=get.invoke(null,c);connection.getMethod("disconnect").invoke(manager);
+   store.enabled(false);Object paused=ctor.newInstance(c,store);attempt.invoke(paused);close.invoke(paused);if(WirelessAdbBridge.running())throw new Exception("Paused channel reconnected");
+   store.enabled(true);store.maximum(false,-1);Object revoked=ctor.newInstance(c,store);attempt.invoke(revoked);close.invoke(revoked);if(WirelessAdbBridge.running())throw new Exception("Revoked grant reconnected");store.enabled(false);
+   result.putString("result","PASS: fresh-process persisted identity automatic local TLS reconnect, UID2000 + shell, pause and revoked consent prevent reconnect");finish(-1,result);return;
+  }
   if("notification-cancel".equals(args.getString("mode"))){
    c.startForegroundService(new Intent(c,WirelessPairingService.class).setAction(WirelessPairingService.START));
    Notification notice=null;long limit=android.os.SystemClock.elapsedRealtime()+5000;

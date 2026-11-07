@@ -27,7 +27,7 @@ public final class NotificationSync {
         }
     }
     public static void resume(Context context) {
-        if (!enabled(context)) return;
+        if (!enabled(context) || !context.getSystemService(android.os.UserManager.class).isUserUnlocked()) return;
         JobScheduler jobs = context.getSystemService(JobScheduler.class);
         if (jobs.getPendingJob(JOB) == null) jobs.schedule(new JobInfo.Builder(JOB,
                 new ComponentName(context, NotificationRecoveryJob.class))

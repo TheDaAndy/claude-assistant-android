@@ -22,6 +22,8 @@ public final class WirelessPairingService extends Service {
     private String session,pendingCode;
     private int pairingPort,connectPort;
     private boolean resolving,busy,paired,closed,connecting;
+    private static volatile boolean active;
+    public static boolean active(){return active;}
     private static volatile String lastStatus="";
     public static String status(){return lastStatus;}
     @Override public IBinder onBind(Intent intent){return null;}
@@ -35,7 +37,7 @@ public final class WirelessPairingService extends Service {
         String action=intent.getAction();
         if(START.equals(action)){
             if(session!=null)return START_NOT_STICKY;
-            session=UUID.randomUUID().toString();
+            active=true;session=UUID.randomUUID().toString();
             show("In den Einstellungen WLAN-Debugging und ›Mit Kopplungscode koppeln‹ öffnen.",true);
             discover("_adb-tls-pairing._tcp.");discover("_adb-tls-connect._tcp.");
             main.postDelayed(()->finish("Kopplung abgelaufen. In Ankaï erneut starten."),300000);
@@ -133,7 +135,7 @@ public final class WirelessPairingService extends Service {
                 finish(success?"Verbunden · zurück zu Ankaï und ADB-Zugriff freigeben.":"Gekoppelt. Verbindung fehlgeschlagen; in Ankaï mit aktuellem Verbindungsport verbinden.");
             });});
     }
-    @Override public void onDestroy(){closed=true;pendingCode=null;main.removeCallbacksAndMessages(null);
+    @Override public void onDestroy(){active=false;closed=true;pendingCode=null;main.removeCallbacksAndMessages(null);
         for(NsdManager.DiscoveryListener listener:discoveries)try{nsd.stopServiceDiscovery(listener);}catch(RuntimeException ignored){}
         resolveQueue.clear();worker.shutdownNow();
         if(connecting){WirelessAdbConnection c=WirelessAdbConnection.current();if(c!=null)try{c.disconnect();}catch(Exception ignored){}}
