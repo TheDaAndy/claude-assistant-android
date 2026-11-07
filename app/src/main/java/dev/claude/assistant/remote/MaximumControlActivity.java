@@ -14,7 +14,7 @@ public final class MaximumControlActivity extends Activity {
     private DeviceLinkStore store;
     private TextView status;
     private CheckBox maximum;
-    private EditText pairingPort,code,connectionPort;
+    private EditText connectionPort;
     private Button pair,connect,disconnect;
     private boolean rendering,busy;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
@@ -32,15 +32,10 @@ public final class MaximumControlActivity extends Activity {
         l.addView(text("Wireless Debugging",24));
         l.addView(text("Direkt in Ankaï integriert · keine zusätzliche App nötig. Android 11 oder neuer und aktiviertes WLAN-Debugging sind erforderlich. Die Verbindung bleibt lokal auf diesem Handy.",16));
         button(l,"Entwickleroptionen öffnen",()->{try{startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));}catch(ActivityNotFoundException e){startActivity(new Intent(Settings.ACTION_SETTINGS));}});
-        l.addView(text("1. WLAN-Debugging einschalten und ›Gerät mit Kopplungscode koppeln‹ öffnen. Einstellungen und Ankaï im geteilten Bildschirm verwenden, damit der Code gültig bleibt.",16));
-        pairingPort=field(l,"Kopplungsport",false);code=field(l,"Sechsstelliger Kopplungscode",true);
-        pair=button(l,"Mit diesem Handy koppeln",()->{
-            final int port;try{port=port(pairingPort);}catch(Exception e){status.setText("Kopplungsport muss zwischen 1 und 65535 liegen.");return;}
-            String pin=code.getText().toString();code.setText("");
-            if(!pin.matches("[0-9]{6}")){status.setText("Bitte den sechsstelligen Kopplungscode eingeben.");return;}
-            work(()->{if(!WirelessAdbConnection.get(this).pair("127.0.0.1",port,pin))throw new Exception();},"Gekoppelt. Jetzt den Verbindungsport aus der WLAN-Debugging-Hauptseite eingeben.");
-        });
-        l.addView(text("2. Zur WLAN-Debugging-Hauptseite zurückkehren. Der dortige Port bei ›IP-Adresse und Port‹ ist der Verbindungsport und unterscheidet sich vom Kopplungsport.",16));
+        l.addView(text("1. ›Kopplung per Benachrichtigung starten‹ antippen.\n2. In den Entwickleroptionen WLAN-Debugging einschalten und ›Mit Kopplungscode koppeln‹ öffnen.\n3. Benachrichtigungen herunterziehen und bei Ankaï ›Code eingeben‹ wählen. Sechsstelligen Code senden. Androids Kopplungsdialog bleibt geöffnet.\n4. Ankaï verbindet sich automatisch. Danach hier den ADB-Zugriff freigeben.",16));
+        pair=button(l,"Kopplung per Benachrichtigung starten",this::startNotificationPairing);
+        l.addView(text("Kein geteilter Bildschirm nötig. Ports werden automatisch erkannt. Falls die Portsuche nicht funktioniert, in der Benachrichtigung den angezeigten Kopplungsport, ein Leerzeichen und den Code eingeben.",16));
+        l.addView(text("Bereits gekoppelt? Bei Bedarf den Verbindungsport von der WLAN-Debugging-Hauptseite hier eingeben.",16));
         connectionPort=field(l,"Verbindungsport",false);
         connect=button(l,"Lokal verbinden",()->{
             final int port;try{port=port(connectionPort);}catch(Exception e){status.setText("Verbindungsport muss zwischen 1 und 65535 liegen.");return;}
@@ -61,6 +56,25 @@ public final class MaximumControlActivity extends Activity {
         l.addView(text("Nach einem Neustart oder WLAN-Wechsel kann eine neue Verbindung mit geändertem Port nötig sein. Nach Prozessende erneut verbinden. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Kein Root-Zugang. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
         button(l,"Zurück zur Gerätefreigabe",this::finish);refresh();
     }
+    private void startNotificationPairing(){
+        if(Build.VERSION.SDK_INT<30)return;
+        if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},7304);return;
+        }
+        NotificationManager notifications=getSystemService(NotificationManager.class);
+        NotificationChannel channel=notifications.getNotificationChannel("wireless_pairing");
+        if(!notifications.areNotificationsEnabled()||(channel!=null&&channel.getImportance()==NotificationManager.IMPORTANCE_NONE)){
+            status.setText("Bitte Benachrichtigungen für Ankaï erlauben, damit die Code-Eingabe verfügbar ist.");
+            startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName()));return;
+        }
+        startForegroundService(new Intent(this,WirelessPairingService.class).setAction(WirelessPairingService.START));
+        try{startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));}catch(ActivityNotFoundException e){startActivity(new Intent(Settings.ACTION_SETTINGS));}
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
+        super.onRequestPermissionsResult(request,permissions,grants);
+        if(request==7304){if(grants.length>0&&grants[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)startNotificationPairing();
+            else status.setText("Für die Code-Eingabe bitte Benachrichtigungen erlauben und erneut starten.");}
+    }
     private int port(EditText input){int p=Integer.parseInt(input.getText().toString().trim());if(p<1||p>65535)throw new IllegalArgumentException();return p;}
     private interface Job{void run()throws Exception;}
     private void work(Job job,String success){
@@ -71,10 +85,10 @@ public final class MaximumControlActivity extends Activity {
     private void pause(){store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));DevicePresenceMonitor.changed();}
     private void refresh(){
         if(status==null||isDestroyed())return;boolean ready=WirelessAdbBridge.authorized(),supported=Build.VERSION.SDK_INT>=30;
-        status.setText(!supported?"Wireless Debugging benötigt Android 11 oder neuer.":ready?"Verbunden · ADB/SHELL (UID 2000)":"Nicht verbunden · lokal koppeln und verbinden.");
+        status.setText(!supported?"Wireless Debugging benötigt Android 11 oder neuer.":ready?"Verbunden · ADB/SHELL (UID 2000)":"Nicht verbunden · Kopplung per Benachrichtigung starten.");
         pair.setEnabled(supported&&!busy);connect.setEnabled(supported&&!busy);disconnect.setEnabled(!busy&&WirelessAdbBridge.running());
         rendering=true;maximum.setChecked(store.maximumGranted(ready?2000:-1));maximum.setEnabled(ready&&!busy&&store.id()!=null);rendering=false;
     }
     @Override public void onResume(){super.onResume();refresh();}
-    @Override public void onDestroy(){code.setText("");worker.shutdownNow();super.onDestroy();}
+    @Override public void onDestroy(){worker.shutdownNow();super.onDestroy();}
 }

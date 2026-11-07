@@ -4,6 +4,10 @@
 
 # Changelog
 
+## 1.11.1 (Build 25)
+- Pair Wireless Debugging from an inline notification reply while Android Settings stays open, with local port discovery and automatic connection. Split screen is no longer required.
+
+
 ## 1.11.0 (Build 24)
 - Replace the external Shizuku dependency with locally paired TLS Wireless Debugging, encrypted ADB identity storage, explicit on-device consent, UID verification and bounded shell-v2 execution.
 

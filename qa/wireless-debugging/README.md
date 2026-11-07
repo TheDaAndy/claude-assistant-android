@@ -11,3 +11,9 @@ API 35 x86_64 emulator: passed 2026-11-07 with Assistant 1.11.0/build24; no app 
 Shell commands remain within Android ADB permissions. Closing a stream does not guarantee immediate termination of deliberately detached jobs. A remote timeout bounds normal foreground commands, and uncertain results are never retried.
 
 Dependency references: https://github.com/MuntashirAkon/libadb-android/tree/3.1.1 (Apache-2.0 OR GPL-3.0); Conscrypt 2.5.3 (Apache-2.0), Bouncy Castle 1.81 (MIT). SPAKE2 is a transitive native dependency; see upstream licensing. Debug APK includes arm64-v8a and x86_64 (also armv7/x86).
+
+## Notification pairing regression (1.11.1/build25)
+
+`-e mode notification` starts the real foreground pairing service and waits up to three minutes. The separate test APK registers the test-only `ankai.qa.PAIR_REPLY` broadcast to forward an ephemeral `code` extra through the actual notification RemoteInput PendingIntent. It is never registered by the shipped app. Keep Settings' pairing dialog open and pass the code without a port to prove actual local mDNS discovery of both pairing and connection endpoints. The test verifies TLS pairing, UID2000 and a real shell command. Invalid replies must leave the notification usable; no pairing code is printed or persisted by production code. Inspect the expanded notification with its inline text field and the underlying Settings activity.
+
+API35 x86_64: actual code-only notification reply, discovery, pairing, connection and shell passed. No split screen used. Invalid replies, cancellation and stale PendingIntent rejection passed in the separate `notification-cancel` regression. The complete code-only flow also passed using the actual SystemUI inline editor, Android keyboard and Send button while Settings stayed open; no test broadcast used in that run. Notification permission denial and blocked-channel guidance are implemented; vendor-specific behavior remains a hardware check.

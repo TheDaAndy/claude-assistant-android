@@ -27,6 +27,9 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.ClaudeAssistant">
 
+        <service android:name=".remote.WirelessPairingService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-initiated local wireless debugging pairing with notification code input; limited to five minutes" />
+        </service>
         <activity android:name=".remote.MaximumControlActivity" android:exported="false" />
         <activity android:name=".remote.UiControlActivity" android:exported="false" />
         <service android:name=".remote.UiControlService" android:exported="true" android:label="Ankaï-Gerätesteuerung" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

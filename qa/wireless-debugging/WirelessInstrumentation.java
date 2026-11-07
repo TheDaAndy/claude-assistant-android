@@ -10,6 +10,49 @@ public final class WirelessInstrumentation extends Instrumentation {
  @Override public void onCreate(Bundle b){args=b;start();}
  @Override public void onStart(){Bundle result=new Bundle();try{
   Context c=getTargetContext();
+  if("notification-cancel".equals(args.getString("mode"))){
+   c.startForegroundService(new Intent(c,WirelessPairingService.class).setAction(WirelessPairingService.START));
+   Notification notice=null;long limit=android.os.SystemClock.elapsedRealtime()+5000;
+   while(notice==null&&android.os.SystemClock.elapsedRealtime()<limit){
+    for(android.service.notification.StatusBarNotification n:c.getSystemService(NotificationManager.class).getActiveNotifications())if(n.getId()==WirelessPairingService.NOTIFICATION_ID&&n.getNotification().actions!=null)notice=n.getNotification();
+    Thread.sleep(100);
+   }
+   if(notice==null)throw new Exception("No pairing notification");
+   Notification.Action reply=null,cancel=null;for(Notification.Action action:notice.actions){if(action.getRemoteInputs()!=null)reply=action;else cancel=action;}
+   if(reply==null||cancel==null)throw new Exception("Missing notification actions");
+   Intent fill=new Intent();Bundle invalid=new Bundle();invalid.putCharSequence(WirelessPairingService.INPUT,"123");RemoteInput.addResultsToIntent(reply.getRemoteInputs(),fill,invalid);reply.actionIntent.send(c,0,fill);
+   Thread.sleep(300);if(!WirelessPairingService.status().contains("sechsstelligen"))throw new Exception("Invalid reply not rejected");
+   cancel.actionIntent.send();Thread.sleep(500);if(!WirelessPairingService.status().contains("abgebrochen"))throw new Exception("Cancel failed");
+   reply.actionIntent.send(c,0,fill);Thread.sleep(500);if(!WirelessPairingService.status().contains("abgebrochen"))throw new Exception("Stale reply resurrected session");
+   result.putString("result","PASS: invalid reply, cancel, stale PendingIntent rejection");finish(-1,result);return;
+  }
+  if("notification".equals(args.getString("mode"))){
+   c.startForegroundService(new Intent(c,WirelessPairingService.class).setAction(WirelessPairingService.START));
+   final android.content.BroadcastReceiver receiver=new android.content.BroadcastReceiver(){
+    @Override public void onReceive(Context context,Intent intent){try{
+      android.service.notification.StatusBarNotification[] notices=c.getSystemService(NotificationManager.class).getActiveNotifications();
+      for(android.service.notification.StatusBarNotification notice:notices){
+       if(notice.getId()!=WirelessPairingService.NOTIFICATION_ID)continue;
+       Notification.Action[] actions=notice.getNotification().actions;if(actions==null)continue;
+       for(Notification.Action action:actions){if(action.getRemoteInputs()==null)continue;
+        Intent fill=new Intent();Bundle values=new Bundle();values.putCharSequence(WirelessPairingService.INPUT,intent.getStringExtra("code"));
+        RemoteInput.addResultsToIntent(action.getRemoteInputs(),fill,values);action.actionIntent.send(c,0,fill);return;
+       }
+      }
+    }catch(Exception ignored){}}
+   };
+   if(android.os.Build.VERSION.SDK_INT>=33)c.registerReceiver(receiver,new IntentFilter("ankai.qa.PAIR_REPLY"),Context.RECEIVER_EXPORTED);
+   else c.registerReceiver(receiver,new IntentFilter("ankai.qa.PAIR_REPLY"));
+   try{
+    long deadline=android.os.SystemClock.elapsedRealtime()+180000;
+    while(!WirelessAdbBridge.authorized()&&android.os.SystemClock.elapsedRealtime()<deadline)Thread.sleep(250);
+    if(!WirelessAdbBridge.authorized())throw new Exception("Notification pairing failed: "+WirelessPairingService.status());
+    JSONObject data=new WirelessAdbBridge(c).execute("printf notification-ok",3).getJSONObject("data");
+    if(!"notification-ok".equals(data.getString("stdout")))throw new Exception("notification shell failed");
+    result.putString("result","PASS: notification RemoteInput, local mDNS pairing + connect discovery, actual TLS pairing, UID2000 and shell");
+    finish(-1,result);return;
+   }finally{c.unregisterReceiver(receiver);}
+  }
   if("ui".equals(args.getString("mode"))){
    Activity a=startActivitySync(new Intent(c,MaximumControlActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
    Thread.sleep(60000);result.putString("screen",a.getClass().getSimpleName());finish(-1,result);return;
