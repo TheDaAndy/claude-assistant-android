@@ -167,7 +167,7 @@ public final class DeviceChannelService extends Service {
                     .put("airplaneMode", Settings.Global.getInt(getContentResolver(), Settings.Global.AIRPLANE_MODE_ON, 0) == 1)
                     .put("automaticTime", Settings.Global.getInt(getContentResolver(), Settings.Global.AUTO_TIME, 0) == 1)
                     .put("adbAvailable",WirelessAdbBridge.authorized()).put("wirelessDebuggingConnected",WirelessAdbBridge.running())
-                    .put("maximumRequested",store.maximumRequested()).put("remoteShellEnabled",store.maximumGranted(WirelessAdbBridge.privilegeUid()) && WirelessAdbBridge.authorized()).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
+                    .put("adbRecoveryState",store.adbRecoveryState()).put("adbRecoveryObservedAt",store.adbRecoveryObservedAt()).put("maximumRequested",store.maximumRequested()).put("remoteShellEnabled",store.maximumGranted(WirelessAdbBridge.privilegeUid()) && WirelessAdbBridge.authorized()).put("scope", "Nur freigegebene, öffentlich lesbare Einstellungen; keine globalen Logs oder privaten App-Daten.");
         } else {
             if (!getSystemService(NotificationManager.class).areNotificationsEnabled())
                 return new JSONObject().put("status", "error").put("data", "Benachrichtigungen deaktiviert");

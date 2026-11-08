@@ -38,6 +38,9 @@ public final class DeviceLinkStore {
     public void autoDebugEnabled(boolean value){store.put("device.autoDebug",String.valueOf(value));if(value)store.remove("device.autoDebugBoot");}
     public int autoDebugBoot(){try{return Integer.parseInt(store.get("device.autoDebugBoot"));}catch(Exception ignored){return -1;}}
     public void autoDebugBoot(int boot){store.put("device.autoDebugBoot",String.valueOf(boot));}
+    public String adbRecoveryState(){String value=store.get("device.adbRecoveryState");return value==null?"unknown":value;}
+    void adbRecoveryState(String state){if(!state.equals(adbRecoveryState())){store.put("device.adbRecoveryState",state);store.put("device.adbRecoveryObservedAt",String.valueOf(System.currentTimeMillis()));}}
+    public long adbRecoveryObservedAt(){try{return Long.parseLong(store.get("device.adbRecoveryObservedAt"));}catch(Exception ignored){return 0;}}
     public boolean maximumRequested(){return "true".equals(store.get("device.maximum"));}
     public boolean maximumGranted(int uid){return maximumRequested() && String.valueOf(uid).equals(store.get("device.maximumUid"));}
     public void maximum(boolean value,int uid){store.put("device.maximum",String.valueOf(value));if(value)store.put("device.maximumUid",String.valueOf(uid));else store.remove("device.maximumUid");}
@@ -63,6 +66,6 @@ public final class DeviceLinkStore {
     public void clear() {
         DeviceRecovery.configure(context,false);
         PackageInstallManager.cancelAll(context,"Kopplung entfernt");
-        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs", "autoDebug", "autoDebugBoot"}) store.remove("device." + key);
+        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs", "autoDebug", "autoDebugBoot", "adbRecoveryState", "adbRecoveryObservedAt"}) store.remove("device." + key);
     }
 }

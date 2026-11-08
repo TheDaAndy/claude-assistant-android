@@ -109,6 +109,30 @@ public final class WirelessInstrumentation extends Instrumentation {
   Object connected=cls.getMethod("connect",String.class,int.class).invoke(manager,"127.0.0.1",Integer.parseInt(args.getString("port")));
   if(!Boolean.TRUE.equals(connected))throw new Exception("connect failed");
   Method verify=cls.getDeclaredMethod("verifyShell");verify.setAccessible(true);verify.invoke(manager);
+  if("health".equals(args.getString("mode"))){
+   DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-health","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,expectedUid);store.enabled(true);
+   Class<?> recoveryClass=Class.forName("dev.claude.assistant.remote.WirelessAdbRecovery");
+   Constructor<?> ctor=recoveryClass.getDeclaredConstructor(Context.class,DeviceLinkStore.class);ctor.setAccessible(true);
+   Object recovery=ctor.newInstance(c,store);Method healthy=recoveryClass.getDeclaredMethod("healthy",cls),close=recoveryClass.getDeclaredMethod("close");healthy.setAccessible(true);close.setAccessible(true);
+   try{
+    if(!Boolean.TRUE.equals(healthy.invoke(recovery,manager)))throw new Exception("Live transport failed health check");
+    if(!"healthy".equals(store.adbRecoveryState()))throw new Exception("Missing health diagnostic");
+    Field deadline=recoveryClass.getDeclaredField("nextHealthCheck");deadline.setAccessible(true);deadline.setLong(recovery,0);
+    // Simulate an open but unverified transport: this used to suppress reconnect forever.
+    Field verified=cls.getDeclaredField("verified");verified.setAccessible(true);verified.setBoolean(manager,false);
+    if(!WirelessAdbBridge.running())throw new Exception("Fixture needs an open transport");
+    if(Boolean.TRUE.equals(healthy.invoke(recovery,manager))||WirelessAdbBridge.running())throw new Exception("Unverified transport was retained");
+    if(!"health_check_failed".equals(store.adbRecoveryState()))throw new Exception("Missing failure diagnostic");
+    // Same key, no code/pair call: reconnect and execute a real command.
+    if(!Boolean.TRUE.equals(cls.getMethod("connect",String.class,int.class).invoke(manager,"127.0.0.1",Integer.parseInt(args.getString("port")))))throw new Exception("Reconnect failed");
+    verify.invoke(manager);
+    if(!"health-reconnected".equals(new WirelessAdbBridge(c).execute("printf health-reconnected",3).getJSONObject("data").getString("stdout")))throw new Exception("Reconnected shell failed");
+    store.enabled(false);deadline.setLong(recovery,0);
+    if(!Boolean.TRUE.equals(healthy.invoke(recovery,manager)))throw new Exception("Paused recovery performed probe");
+    result.putString("result","PASS: real UID probe, stale open transport discarded, diagnostic, reconnect with same identity/no pairing, real shell, pause guard");
+   }finally{close.invoke(recovery);store.enabled(false);cls.getMethod("disconnect").invoke(manager);}
+   finish(-1,result);return;
+  }
   WirelessAdbBridge bridge=new WirelessAdbBridge(c);
   JSONObject response=bridge.execute("printf hello; printf problem >&2; exit 7",5),data=response.getJSONObject("data");
   if(data.getInt("uid")!=expectedUid||data.getInt("exitCode")!=7||!"hello".equals(data.getString("stdout"))||!"problem".equals(data.getString("stderr")))throw new Exception("shell output mismatch: "+response);

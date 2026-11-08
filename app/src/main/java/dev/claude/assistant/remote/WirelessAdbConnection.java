@@ -33,7 +33,7 @@ final class WirelessAdbConnection extends AbsAdbConnectionManager {
     int uid(){return verified()?verifiedUid:-1;}
     boolean verified(){return verified&&isConnected();}
     void verifyShell()throws Exception {
-        verified=false;
+        // Preserve a healthy capability during a routine probe; invalidate on failure.
         java.util.concurrent.ScheduledExecutorService deadline=java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
         deadline.schedule(()->{try{disconnect();}catch(java.io.IOException ignored){}},15,TimeUnit.SECONDS);
         try(io.github.muntashirakon.adb.AdbStream stream=openStream("shell: id -u")){
@@ -44,7 +44,7 @@ final class WirelessAdbConnection extends AbsAdbConnectionManager {
             if(!"2000".equals(value)&&!"0".equals(value)){disconnect();throw new java.io.IOException("Unerwartete ADB-UID; Verbindung abgelehnt");}
             verifiedUid=dev.claude.assistant.ankai.AdbUidPolicy.parse(value);
             verified=true;
-        }finally{deadline.shutdownNow();}
+        }catch(Exception failure){verified=false;verifiedUid=-1;throw failure;}finally{deadline.shutdownNow();}
     }
     @Override public void disconnect()throws java.io.IOException {verified=false;verifiedUid=-1;super.disconnect();}
     private final PrivateKey key;

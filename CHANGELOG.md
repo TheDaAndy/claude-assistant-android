@@ -1,5 +1,9 @@
 # 1.10.0
 
+## 1.12.1 (Build 29)
+- Check existing ADB transports with a bounded UID probe every minute and on network return; discard stale/unverified transports and reconnect with the saved identity, without replaying user commands.
+- Expose redacted recovery phase/error and timestamp in settings diagnostics. Pairing and local consent remain unchanged.
+
 - Persönliche Mailvorschläge zeigen konkrete Anhänge vor Freigabe. Authentifizierte Bildvorschau mit Größen- und SHA-256-Prüfung; PDF-Vorschau der ersten Seite.
 
 # Changelog

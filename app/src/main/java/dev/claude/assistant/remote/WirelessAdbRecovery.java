@@ -21,30 +21,67 @@ final class WirelessAdbRecovery implements AutoCloseable {
     private volatile CountDownLatch scan;
     private volatile boolean connecting;
     private int failures;
+    private volatile long nextHealthCheck;
     private volatile long nextAttempt;
     WirelessAdbRecovery(Context context,DeviceLinkStore store){this.context=context.getApplicationContext();this.store=store;}
     void start(){worker.scheduleWithFixedDelay(this::attempt,0,5,TimeUnit.SECONDS);}
-    void networkAvailable(){nextAttempt=0;if(!closed&&queued.compareAndSet(false,true))try{worker.execute(()->{queued.set(false);attempt();});}catch(RejectedExecutionException ignored){queued.set(false);}}
+    void networkAvailable(){nextAttempt=0;nextHealthCheck=0;if(!closed&&queued.compareAndSet(false,true))try{worker.execute(()->{queued.set(false);attempt();});}catch(RejectedExecutionException ignored){queued.set(false);}}
     private boolean allowed(){return !closed&&AdbRecoveryPolicy.allowed(Build.VERSION.SDK_INT,store.enabled(),store.id()!=null,(store.maximumGranted(2000)||store.maximumGranted(0)),
         store.wirelessIdentityAvailable(),WirelessPairingService.active());}
     private void attempt(){
         try{
             if(allowed())WirelessDebuggingAutostart.enableIfNeeded(context,store);
-            if(!allowed()||WirelessAdbBridge.running()||SystemClock.elapsedRealtime()<nextAttempt)return;
+            if(!allowed())return;
+            if(WirelessAdbBridge.running()){
+                WirelessAdbConnection current=WirelessAdbConnection.current();
+                if(healthy(current))return;
+                if(!allowed())return;
+            }
+            if(SystemClock.elapsedRealtime()<nextAttempt)return;
+            diagnostic("discovering");
             int port=discoverPort();
-            if(port<=0||!allowed()||WirelessAdbBridge.running()){retry();return;}
+            if(!allowed()||WirelessAdbBridge.running())return;
+            if(port<=0){diagnostic("discovery_unavailable");retry();return;}
             WirelessAdbConnection connection=WirelessAdbConnection.get(context);connecting=true;
             try{
                 if(!allowed())return;
                 connection.disconnect();
+                diagnostic("connecting");
                 if(!connection.connect("127.0.0.1",port))throw new java.io.IOException();
                 connection.verifyShell();
                 if(!allowed()||!store.maximumGranted(connection.uid())){connection.disconnect();return;}
-                failures=0;nextAttempt=0;DevicePresenceMonitor.changed();
-            }catch(Exception unavailable){try{connection.disconnect();}catch(Exception ignored){}retry();}
+                failures=0;nextAttempt=0;nextHealthCheck=SystemClock.elapsedRealtime()+60000;diagnostic("healthy");DevicePresenceMonitor.changed();
+            }catch(Exception unavailable){diagnostic(failure(unavailable));try{connection.disconnect();}catch(Exception ignored){}retry();}
             finally{connecting=false;}
-        }catch(Exception unavailable){retry();}
+        }catch(Exception unavailable){diagnostic(failure(unavailable));retry();}
     }
+    // An open socket is not proof that adbd still answers. Never replay user commands.
+    private boolean healthy(WirelessAdbConnection connection){
+        if(connection==null)return false;
+        if(connection.verified()&&store.maximumGranted(connection.uid())&&SystemClock.elapsedRealtime()<nextHealthCheck)return true;
+        connecting=true;
+        try{
+            if(!allowed())return true;
+            if(!connection.verified()||!store.maximumGranted(connection.uid()))throw new java.io.IOException();
+            connection.verifyShell();
+            if(!allowed())return true;
+            if(!store.maximumGranted(connection.uid()))throw new java.io.IOException();
+            nextHealthCheck=SystemClock.elapsedRealtime()+60000;diagnostic("healthy");return true;
+        }catch(Exception unavailable){
+            diagnostic("health_check_failed");
+            try{connection.disconnect();}catch(Exception ignored){}
+            nextAttempt=0;DevicePresenceMonitor.changed();return false;
+        }finally{connecting=false;}
+    }
+    private static String failure(Throwable t){
+        for(Throwable e=t;e!=null;e=e.getCause()){
+            if(e instanceof javax.net.ssl.SSLException)return "tls_failed";
+            if(e instanceof java.net.ConnectException)return "port_unreachable";
+            if(e instanceof java.net.SocketTimeoutException||e instanceof java.util.concurrent.TimeoutException)return "timeout";
+        }
+        return "connection_failed";
+    }
+    private void diagnostic(String state){store.adbRecoveryState(state);}
     private void retry(){nextAttempt=SystemClock.elapsedRealtime()+AdbRecoveryPolicy.retryMillis(++failures);}
     private int discoverPort()throws InterruptedException {
         NsdManager nsd=context.getSystemService(NsdManager.class);CountDownLatch latch=new CountDownLatch(1);scan=latch;
