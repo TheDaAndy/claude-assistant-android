@@ -15,6 +15,7 @@ javac -d "$OUT" \
   "$ROOT"/jvm-tests/dev/claude/assistant/ankai/*.java
 
 java -cp "$OUT" TestRunner \
+  dev.claude.assistant.ankai.DebugAutostartPolicyTest \
   dev.claude.assistant.ankai.AdbUidPolicyTest \
   dev.claude.assistant.ankai.AdbRecoveryPolicyTest \
   dev.claude.assistant.ankai.PairingReplyTest \

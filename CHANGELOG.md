@@ -4,6 +4,10 @@
 
 # Changelog
 
+## 1.12.0 (Build 28)
+- Optional once-per-boot Wireless Debugging activation using a separately granted WRITE_SECURE_SETTINGS permission; requires existing channel/ADB consent and Wi-Fi, respects later manual disabling.
+
+
 ## 1.11.3 (Build 27)
 - Preserve the actual verified local ADB UID, accepting rooted adbd without silently granting root; require matching local consent before commands and recovery.
 

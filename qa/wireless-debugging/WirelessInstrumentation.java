@@ -11,6 +11,23 @@ public final class WirelessInstrumentation extends Instrumentation {
  @Override public void onStart(){Bundle result=new Bundle();try{
   Context c=getTargetContext();
   int expectedUid=Integer.parseInt(args.getString("expectedUid","2000"));
+  if("auto-debug".equals(args.getString("mode"))){
+   DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-auto-debug","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,expectedUid);store.enabled(true);store.autoDebugEnabled(true);store.autoDebugBoot(-1);
+   Class<?> cls=Class.forName("dev.claude.assistant.remote.WirelessDebuggingAutostart");Method enable=cls.getDeclaredMethod("enableIfNeeded",Context.class,DeviceLinkStore.class);enable.setAccessible(true);
+   boolean permission=c.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS)==android.content.pm.PackageManager.PERMISSION_GRANTED;
+   if(!permission){if(Boolean.TRUE.equals(enable.invoke(null,c,store)))throw new Exception("Enabled without permission");result.putString("result","PASS: missing secure-settings permission denies activation");}
+   else{
+    android.provider.Settings.Global.putInt(c.getContentResolver(),"adb_wifi_enabled",0);
+    if(!Boolean.TRUE.equals(enable.invoke(null,c,store)))throw new Exception("Auto-enable denied with permission and consent");
+    if(android.provider.Settings.Global.getInt(c.getContentResolver(),"adb_wifi_enabled",0)!=1)throw new Exception("Setting not enabled");
+    android.provider.Settings.Global.putInt(c.getContentResolver(),"adb_wifi_enabled",0);
+    if(Boolean.TRUE.equals(enable.invoke(null,c,store)))throw new Exception("Overrode manual disable within same boot");
+    store.autoDebugEnabled(false);store.autoDebugBoot(-1);if(Boolean.TRUE.equals(enable.invoke(null,c,store)))throw new Exception("Opt-out ignored");
+    store.autoDebugEnabled(true);store.enabled(false);if(Boolean.TRUE.equals(enable.invoke(null,c,store)))throw new Exception("Pause ignored");
+    result.putString("result","PASS: real secure-settings activation, once-per-boot, opt-out and pause");
+   }
+   store.enabled(false);finish(-1,result);return;
+  }
   if("recovery-seed".equals(args.getString("mode"))){
    DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-recovery","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,expectedUid);store.enabled(true);Thread.sleep(1000);
    result.putString("result","PASS: paired identity and local consent persist for next process");finish(-1,result);return;

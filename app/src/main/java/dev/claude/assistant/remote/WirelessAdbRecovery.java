@@ -29,6 +29,7 @@ final class WirelessAdbRecovery implements AutoCloseable {
         store.wirelessIdentityAvailable(),WirelessPairingService.active());}
     private void attempt(){
         try{
+            if(allowed())WirelessDebuggingAutostart.enableIfNeeded(context,store);
             if(!allowed()||WirelessAdbBridge.running()||SystemClock.elapsedRealtime()<nextAttempt)return;
             int port=discoverPort();
             if(port<=0||!allowed()||WirelessAdbBridge.running()){retry();return;}

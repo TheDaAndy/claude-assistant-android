@@ -26,3 +26,6 @@ Verified API35/x86_64 on 2026-11-07: fresh process with saved identity/grant aut
 
 ## Rooted adbd regression (1.11.3/build27)
 The standard native fixture accepts `-e expectedUid 0` or default2000. Verified both real emulator adbd identities over local TCP5555: output separation, actual reported UID, exit, timeout, cap, close and disconnect passed. This TCP test validates UID handling, not the still-open physical HTC TLS diagnosis. Shell UI screenshot reopened and inspected with actual UID2000. JVM policy tests reject unknown UID output and cross-UID consent. Root was previously rejected by UID verification; whether that caused this HTC failure remains unconfirmed until hardware testing.
+
+## Once-per-boot activation (1.12.0/build28)
+`-e mode auto-debug` exercises the actual Settings.Global write from the app UID. First run after revoking WRITE_SECURE_SETTINGS and verify refusal; then grant the development permission through adb, enable emulator Wi-Fi, and run again. API35/x86_64 passed permission-denial, real adb_wifi_enabled activation, once-per-boot guard, opt-out and paused-channel guard. This proves writing the switch; network-trust prompts/daemon readiness and a real FP5 reboot remain separate acceptance steps. No system confirmation is bypassed.

@@ -34,6 +34,10 @@ public final class DeviceLinkStore {
     public boolean uiResume(){return "true".equals(store.get("device.uiResume"));}
     public void uiResume(boolean value){store.put("device.uiResume",String.valueOf(value));}
     boolean wirelessIdentityAvailable(){return store.get("wireless_adb_identity_v1")!=null;}
+    public boolean autoDebugEnabled(){return !"false".equals(store.get("device.autoDebug"));}
+    public void autoDebugEnabled(boolean value){store.put("device.autoDebug",String.valueOf(value));if(value)store.remove("device.autoDebugBoot");}
+    public int autoDebugBoot(){try{return Integer.parseInt(store.get("device.autoDebugBoot"));}catch(Exception ignored){return -1;}}
+    public void autoDebugBoot(int boot){store.put("device.autoDebugBoot",String.valueOf(boot));}
     public boolean maximumRequested(){return "true".equals(store.get("device.maximum"));}
     public boolean maximumGranted(int uid){return maximumRequested() && String.valueOf(uid).equals(store.get("device.maximumUid"));}
     public void maximum(boolean value,int uid){store.put("device.maximum",String.valueOf(value));if(value)store.put("device.maximumUid",String.valueOf(uid));else store.remove("device.maximumUid");}
@@ -59,6 +63,6 @@ public final class DeviceLinkStore {
     public void clear() {
         DeviceRecovery.configure(context,false);
         PackageInstallManager.cancelAll(context,"Kopplung entfernt");
-        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs"}) store.remove("device." + key);
+        for (String key : new String[]{"id", "token", "baseUrl", "projectName", "enabled", "status", "results", "scope", "scopeLabel", "scopeRevision", "maximum", "maximumUid", "controlSequence", "uiGranted", "uiResume", "installGranted", "installJobs", "autoDebug", "autoDebugBoot"}) store.remove("device." + key);
     }
 }
