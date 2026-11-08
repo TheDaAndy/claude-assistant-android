@@ -10,8 +10,9 @@ public final class WirelessInstrumentation extends Instrumentation {
  @Override public void onCreate(Bundle b){args=b;start();}
  @Override public void onStart(){Bundle result=new Bundle();try{
   Context c=getTargetContext();
+  int expectedUid=Integer.parseInt(args.getString("expectedUid","2000"));
   if("recovery-seed".equals(args.getString("mode"))){
-   DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-recovery","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,2000);store.enabled(true);Thread.sleep(1000);
+   DeviceLinkStore store=new DeviceLinkStore(c);store.save("qa-recovery","qa-only","http://10.0.2.2:9","QA only");store.maximum(true,expectedUid);store.enabled(true);Thread.sleep(1000);
    result.putString("result","PASS: paired identity and local consent persist for next process");finish(-1,result);return;
   }
   if("recovery".equals(args.getString("mode"))){
@@ -19,7 +20,7 @@ public final class WirelessInstrumentation extends Instrumentation {
    Class<?> cls=Class.forName("dev.claude.assistant.remote.WirelessAdbRecovery");
    java.lang.reflect.Constructor<?> ctor=cls.getDeclaredConstructor(Context.class,DeviceLinkStore.class);ctor.setAccessible(true);
    Method start=cls.getDeclaredMethod("start"),close=cls.getDeclaredMethod("close"),attempt=cls.getDeclaredMethod("attempt");start.setAccessible(true);close.setAccessible(true);attempt.setAccessible(true);
-   DeviceLinkStore store=new DeviceLinkStore(c);if(!store.enabled()||!store.maximumGranted(2000))throw new Exception("Missing persisted grant enabled="+store.enabled()+" maximum="+store.maximumGranted(2000)+" linked="+(store.id()!=null));
+   DeviceLinkStore store=new DeviceLinkStore(c);if(!store.enabled()||!store.maximumGranted(expectedUid))throw new Exception("Missing persisted grant enabled="+store.enabled()+" maximum="+store.maximumGranted(expectedUid)+" linked="+(store.id()!=null));
    Object recovery=ctor.newInstance(c,store);start.invoke(recovery);
    try{
     long until=android.os.SystemClock.elapsedRealtime()+45000;while(!WirelessAdbBridge.authorized()&&android.os.SystemClock.elapsedRealtime()<until)Thread.sleep(200);
@@ -75,6 +76,10 @@ public final class WirelessInstrumentation extends Instrumentation {
    }finally{c.unregisterReceiver(receiver);}
   }
   if("ui".equals(args.getString("mode"))){
+   if(args.containsKey("port")){
+    Class<?> connection=Class.forName("dev.claude.assistant.remote.WirelessAdbConnection");Method get=connection.getDeclaredMethod("get",Context.class);get.setAccessible(true);Object manager=get.invoke(null,c);
+    connection.getMethod("connect",String.class,int.class).invoke(manager,"127.0.0.1",Integer.parseInt(args.getString("port")));Method verify=connection.getDeclaredMethod("verifyShell");verify.setAccessible(true);verify.invoke(manager);
+   }
    Activity a=startActivitySync(new Intent(c,MaximumControlActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
    Thread.sleep(60000);result.putString("screen",a.getClass().getSimpleName());finish(-1,result);return;
   }
@@ -89,7 +94,7 @@ public final class WirelessInstrumentation extends Instrumentation {
   Method verify=cls.getDeclaredMethod("verifyShell");verify.setAccessible(true);verify.invoke(manager);
   WirelessAdbBridge bridge=new WirelessAdbBridge(c);
   JSONObject response=bridge.execute("printf hello; printf problem >&2; exit 7",5),data=response.getJSONObject("data");
-  if(data.getInt("uid")!=2000||data.getInt("exitCode")!=7||!"hello".equals(data.getString("stdout"))||!"problem".equals(data.getString("stderr")))throw new Exception("shell output mismatch: "+response);
+  if(data.getInt("uid")!=expectedUid||data.getInt("exitCode")!=7||!"hello".equals(data.getString("stdout"))||!"problem".equals(data.getString("stderr")))throw new Exception("shell output mismatch: "+response);
   JSONObject timed=bridge.execute("sleep 10",1).getJSONObject("data");if(!timed.getBoolean("timedOut"))throw new Exception("timeout not enforced");
   JSONObject cap=bridge.execute("yes x | head -c 10000",5).getJSONObject("data");if(!cap.getBoolean("truncated")||cap.getString("stdout").length()!=2048)throw new Exception("output not capped");
   bridge.close();try{bridge.execute("echo unexpected",1);throw new Exception("closed bridge executed");}catch(java.io.IOException expected){}

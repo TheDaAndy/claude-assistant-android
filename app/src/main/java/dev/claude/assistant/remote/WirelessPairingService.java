@@ -126,13 +126,13 @@ public final class WirelessPairingService extends Service {
     private void tryConnect(){
         if(closed||busy||!paired||connectPort==0)return;
         busy=true;connecting=true;int port=connectPort;
-        worker.submit(()->{boolean ok=false;try{
+        worker.submit(()->{boolean ok=false;String error="";try{
             WirelessAdbConnection c=WirelessAdbConnection.get(this);if(closed)return;
             c.disconnect();if(!c.connect("127.0.0.1",port))throw new Exception();c.verifyShell();ok=true;
-        }catch(Exception ignored){}final boolean success=ok;
+        }catch(Exception failure){error=WirelessAdbConnection.failureMessage(failure);}final boolean success=ok;final String detail=error;
             main.post(()->{connecting=false;if(closed){try{WirelessAdbConnection.get(this).disconnect();}catch(Exception ignored){}return;}
                 busy=false;DevicePresenceMonitor.changed();
-                finish(success?"Verbunden · zurück zu Ankaï und ADB-Zugriff freigeben.":"Gekoppelt. Verbindung fehlgeschlagen; in Ankaï mit aktuellem Verbindungsport verbinden.");
+                finish(success?"Verbunden · zurück zu Ankaï und ADB-Zugriff freigeben.":"Gekoppelt. "+detail);
             });});
     }
     @Override public void onDestroy(){active=false;closed=true;pendingCode=null;main.removeCallbacksAndMessages(null);

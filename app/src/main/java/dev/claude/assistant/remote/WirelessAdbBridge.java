@@ -16,7 +16,7 @@ public final class WirelessAdbBridge {
     public WirelessAdbBridge(Context context){this.context=context.getApplicationContext();}
     public static boolean running(){WirelessAdbConnection c=WirelessAdbConnection.current();return c!=null&&c.isConnected();}
     public static boolean authorized(){WirelessAdbConnection c=WirelessAdbConnection.current();return c!=null&&c.verified();}
-    public static int privilegeUid(){return authorized()?2000:-1;}
+    public static int privilegeUid(){WirelessAdbConnection c=WirelessAdbConnection.current();return c==null?-1:c.uid();}
     private static String quote(String s){return "'"+s.replace("'","'\\''")+"'";}
     public synchronized JSONObject execute(String command,int timeout)throws Exception {
         PrivilegedCommandPolicy.validate(command,timeout);
@@ -29,7 +29,7 @@ public final class WirelessAdbBridge {
             dev.claude.assistant.ankai.AdbShellResult result=dev.claude.assistant.ankai.AdbShellResult.read(in);
             if(closed)throw new IOException("Ausführung unterbrochen; Ergebnis unbekannt.");
             int exit=result.exitCode;
-            return new JSONObject().put("status",exit==0?"ok":"error").put("data",new JSONObject().put("uid",2000).put("exitCode",exit)
+            return new JSONObject().put("status",exit==0?"ok":"error").put("data",new JSONObject().put("uid",privilegeUid()).put("exitCode",exit)
                 .put("timedOut",exit==124||exit==137).put("stdout",result.stdout).put("stderr",result.stderr).put("truncated",result.truncated));
         }finally{active=null;timer.shutdownNow();stream.close();DevicePresenceMonitor.changed();}
     }

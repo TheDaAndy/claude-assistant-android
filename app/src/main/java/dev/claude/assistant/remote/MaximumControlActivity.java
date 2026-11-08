@@ -39,7 +39,7 @@ public final class MaximumControlActivity extends Activity {
         connectionPort=field(l,"Verbindungsport",false);
         connect=button(l,"Lokal verbinden",()->{
             final int port;try{port=port(connectionPort);}catch(Exception e){status.setText("Verbindungsport muss zwischen 1 und 65535 liegen.");return;}
-            work(()->{WirelessAdbConnection c=WirelessAdbConnection.get(this);c.disconnect();if(!c.connect("127.0.0.1",port))throw new Exception();c.verifyShell();},"Verbunden · ADB/SHELL (UID 2000)");
+            work(()->{WirelessAdbConnection c=WirelessAdbConnection.get(this);c.disconnect();if(!c.connect("127.0.0.1",port))throw new Exception();c.verifyShell();},"Verbunden · UID "+WirelessAdbBridge.privilegeUid());
         });
         disconnect=button(l,"Verbindung trennen",()->{pause();work(()->WirelessAdbConnection.get(this).disconnect(),"Verbindung getrennt.");});
         status=text("",16);l.addView(status);
@@ -48,12 +48,13 @@ public final class MaximumControlActivity extends Activity {
             if(rendering)return;
             if(!on){pause();store.maximum(false,-1);refresh();return;}
             if(!WirelessAdbBridge.authorized()){refresh();return;}
+            final int consentUid=WirelessAdbBridge.privilegeUid();
             new AlertDialog.Builder(this).setTitle("ADB-Zugriff erlauben?")
-                .setMessage("Freigabe: "+store.scopeLabel()+"\n\nADB/SHELL: Ankaï kann Logs lesen, Apps und Bedienung steuern sowie Einstellungen ändern. Android- und SELinux-Beschränkungen bleiben bestehen. Private App-Daten sind damit nicht allgemein zugänglich.\n\nBefehle laufen im Rahmen deines Auftrags ohne Einzelbestätigung. Der sichtbare Gerätekanal muss aktiv sein. Du kannst jederzeit pausieren oder widerrufen.")
-                .setNegativeButton("Abbrechen",(d,w)->refresh()).setPositiveButton("Freigeben",(d,w)->{pause();store.maximum(true,2000);refresh();})
+                .setMessage("Freigabe: "+store.scopeLabel()+"\n\n"+(consentUid==0?"ROOT (UID 0): weitreichende Root-Befehle möglich. ":"ADB/SHELL: ")+" Ankaï kann Logs lesen, Apps und Bedienung steuern sowie Einstellungen ändern. Android- und SELinux-Beschränkungen bleiben bestehen. Bei Root können auch private App-Daten zugänglich sein; ohne Root bleiben sie geschützt.\n\nBefehle laufen im Rahmen deines Auftrags ohne Einzelbestätigung. Der sichtbare Gerätekanal muss aktiv sein. Du kannst jederzeit pausieren oder widerrufen.")
+                .setNegativeButton("Abbrechen",(d,w)->refresh()).setPositiveButton("Freigeben",(d,w)->{if(!WirelessAdbBridge.authorized()||!dev.claude.assistant.ankai.AdbUidPolicy.matches(consentUid,WirelessAdbBridge.privilegeUid())){refresh();return;}pause();store.maximum(true,consentUid);refresh();})
                 .setOnCancelListener(d->refresh()).show();
         });
-        l.addView(text("Bei aktivem Gerätekanal und erteiltem ADB-Zugriff wird die bestehende Kopplung nach Prozessende, Neustart und WLAN-Rückkehr automatisch erneut verbunden, sofern Android WLAN-Debugging freigibt. Bei ausgeschaltetem WLAN-Debugging musst du es in Android wieder einschalten. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Kein Root-Zugang. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
+        l.addView(text("Bei aktivem Gerätekanal und erteiltem ADB-Zugriff wird die bestehende Kopplung nach Prozessende, Neustart und WLAN-Rückkehr automatisch erneut verbunden, sofern Android WLAN-Debugging freigibt. Bei ausgeschaltetem WLAN-Debugging musst du es in Android wieder einschalten. Eine bestehende Kopplung bleibt erhalten, bis sie in Android widerrufen wird. Trennen beendet die Verbindung; zum endgültigen Widerruf Ankaï in Android unter ›Gekoppelte Geräte‹ vergessen. Root wird nur genutzt, wenn der lokale ADB-Dienst tatsächlich UID 0 bereitstellt und du diese Rechte freigibst. Bereits gestartete Befehle können bis zum Zeitlimit weiterlaufen.",14));
         button(l,"Zurück zur Gerätefreigabe",this::finish);refresh();
     }
     private void startNotificationPairing(){
@@ -79,15 +80,15 @@ public final class MaximumControlActivity extends Activity {
     private interface Job{void run()throws Exception;}
     private void work(Job job,String success){
         if(busy)return;busy=true;refresh();status.setText("Verbindung wird bearbeitet …");
-        worker.submit(()->{boolean ok=false;try{job.run();ok=true;}catch(Exception ignored){}final boolean passed=ok;
-            runOnUiThread(()->{if(isDestroyed())return;busy=false;refresh();status.setText(passed?success:"Verbindung fehlgeschlagen. WLAN-Debugging, aktuellen Port und gegebenenfalls neuen Kopplungscode prüfen.");DevicePresenceMonitor.changed();});});
+        worker.submit(()->{boolean ok=false;String detail="";try{job.run();ok=true;}catch(Exception failure){detail=WirelessAdbConnection.failureMessage(failure);}final boolean passed=ok;final String error=detail;
+            runOnUiThread(()->{if(isDestroyed())return;busy=false;refresh();status.setText(passed?(WirelessAdbBridge.authorized()?"Verbunden · UID "+WirelessAdbBridge.privilegeUid():success):error);DevicePresenceMonitor.changed();});});
     }
     private void pause(){store.uiResume(false);store.enabled(false);stopService(new Intent(this,DeviceChannelService.class));DevicePresenceMonitor.changed();}
     private void refresh(){
         if(status==null||isDestroyed())return;boolean ready=WirelessAdbBridge.authorized(),supported=Build.VERSION.SDK_INT>=30;
-        status.setText(!supported?"Wireless Debugging benötigt Android 11 oder neuer.":ready?"Verbunden · ADB/SHELL (UID 2000)":"Nicht verbunden · Kopplung per Benachrichtigung starten.");
+        status.setText(!supported?"Wireless Debugging benötigt Android 11 oder neuer.":ready?"Verbunden · UID "+WirelessAdbBridge.privilegeUid():"Nicht verbunden · Kopplung per Benachrichtigung starten.");
         pair.setEnabled(supported&&!busy);connect.setEnabled(supported&&!busy);disconnect.setEnabled(!busy&&WirelessAdbBridge.running());
-        rendering=true;maximum.setChecked(store.maximumGranted(ready?2000:-1));maximum.setEnabled(ready&&!busy&&store.id()!=null);rendering=false;
+        rendering=true;maximum.setChecked(store.maximumGranted(WirelessAdbBridge.privilegeUid()));maximum.setEnabled(ready&&!busy&&store.id()!=null);rendering=false;
     }
     @Override public void onResume(){super.onResume();refresh();}
     @Override public void onDestroy(){worker.shutdownNow();super.onDestroy();}

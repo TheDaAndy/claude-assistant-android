@@ -4,6 +4,10 @@
 
 # Changelog
 
+## 1.11.3 (Build 27)
+- Preserve the actual verified local ADB UID, accepting rooted adbd without silently granting root; require matching local consent before commands and recovery.
+
+
 ## 1.11.2 (Build 26)
 - Restore an already paired and consented local Wireless Debugging connection inside the active device service after process restart and network return, with bounded discovery/backoff and pause/revocation checks. Wait for credential storage unlock before inbox recovery.
 

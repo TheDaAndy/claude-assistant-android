@@ -19,8 +19,18 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 /** One local-device transport per process. Identity is encrypted at rest, never logged. */
 final class WirelessAdbConnection extends AbsAdbConnectionManager {
+    static String failureMessage(Throwable failure){
+        for(Throwable t=failure;t!=null;t=t.getCause()){
+            if(t instanceof javax.net.ssl.SSLException)return "TLS-Verbindung fehlgeschlagen. Kopplung vorhanden; Androids ADB-TLS-Verbindung prüfen.";
+            if(t instanceof java.net.ConnectException)return "ADB-Port nicht erreichbar. Aktuellen Verbindungsport der WLAN-Debugging-Hauptseite prüfen.";
+            if(t instanceof java.net.SocketTimeoutException||t instanceof java.util.concurrent.TimeoutException)return "ADB-Verbindung hat das Zeitlimit überschritten.";
+        }
+        return "ADB-Verbindung oder UID-Prüfung fehlgeschlagen ("+failure.getClass().getSimpleName()+"). Kein Befehl ausgeführt.";
+    }
     private static volatile WirelessAdbConnection instance;
     private volatile boolean verified;
+    private volatile int verifiedUid=-1;
+    int uid(){return verified()?verifiedUid:-1;}
     boolean verified(){return verified&&isConnected();}
     void verifyShell()throws Exception {
         verified=false;
@@ -30,11 +40,13 @@ final class WirelessAdbConnection extends AbsAdbConnectionManager {
             java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();
             java.io.InputStream in=new java.io.BufferedInputStream(stream.openInputStream());int b;
             while((b=in.read())!=-1 && b!='\n'){if(out.size()>32)throw new java.io.IOException();out.write(b);}
-            if(!"2000".equals(out.toString("UTF-8").trim())){disconnect();throw new java.io.IOException("ADB/Shell UID erforderlich");}
+            String value=out.toString("UTF-8").trim();
+            if(!"2000".equals(value)&&!"0".equals(value)){disconnect();throw new java.io.IOException("Unerwartete ADB-UID; Verbindung abgelehnt");}
+            verifiedUid=dev.claude.assistant.ankai.AdbUidPolicy.parse(value);
             verified=true;
         }finally{deadline.shutdownNow();}
     }
-    @Override public void disconnect()throws java.io.IOException {verified=false;super.disconnect();}
+    @Override public void disconnect()throws java.io.IOException {verified=false;verifiedUid=-1;super.disconnect();}
     private final PrivateKey key;
     private final Certificate certificate;
     static synchronized WirelessAdbConnection get(Context context) throws Exception {

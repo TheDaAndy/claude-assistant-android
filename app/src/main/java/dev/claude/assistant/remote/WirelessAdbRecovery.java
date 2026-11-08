@@ -25,7 +25,7 @@ final class WirelessAdbRecovery implements AutoCloseable {
     WirelessAdbRecovery(Context context,DeviceLinkStore store){this.context=context.getApplicationContext();this.store=store;}
     void start(){worker.scheduleWithFixedDelay(this::attempt,0,5,TimeUnit.SECONDS);}
     void networkAvailable(){nextAttempt=0;if(!closed&&queued.compareAndSet(false,true))try{worker.execute(()->{queued.set(false);attempt();});}catch(RejectedExecutionException ignored){queued.set(false);}}
-    private boolean allowed(){return !closed&&AdbRecoveryPolicy.allowed(Build.VERSION.SDK_INT,store.enabled(),store.id()!=null,store.maximumGranted(2000),
+    private boolean allowed(){return !closed&&AdbRecoveryPolicy.allowed(Build.VERSION.SDK_INT,store.enabled(),store.id()!=null,(store.maximumGranted(2000)||store.maximumGranted(0)),
         store.wirelessIdentityAvailable(),WirelessPairingService.active());}
     private void attempt(){
         try{
@@ -38,7 +38,7 @@ final class WirelessAdbRecovery implements AutoCloseable {
                 connection.disconnect();
                 if(!connection.connect("127.0.0.1",port))throw new java.io.IOException();
                 connection.verifyShell();
-                if(!allowed()){connection.disconnect();return;}
+                if(!allowed()||!store.maximumGranted(connection.uid())){connection.disconnect();return;}
                 failures=0;nextAttempt=0;DevicePresenceMonitor.changed();
             }catch(Exception unavailable){try{connection.disconnect();}catch(Exception ignored){}retry();}
             finally{connecting=false;}
