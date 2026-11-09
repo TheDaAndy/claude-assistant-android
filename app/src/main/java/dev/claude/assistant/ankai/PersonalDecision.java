@@ -8,7 +8,7 @@ import java.util.Arrays;
 
 /** An inbox snapshot. Execution policy remains exclusively on the server. */
 public final class PersonalDecision {
-    private static final List<String> INTERNAL = Arrays.asList("memory_note","nextcloud_task","calendar_event","agent_trial");
+    private static final List<String> INTERNAL = Arrays.asList("memory_note","nextcloud_task","calendar_event","agent_trial","create_goal");
     public final String id, kind, status, title, body, agentName, goalTitle, result, expiresAt;
     public final int revision;
     public final double risk, confidence;

@@ -26,5 +26,13 @@ public final class PersonalDashboard {
     @SuppressWarnings("unchecked") private static Map<String,String> names(List<Object> rows,String label){
         Map<String,String> result=new LinkedHashMap<>();for(Object item:rows)if(item instanceof Map){Map<String,Object> row=(Map<String,Object>)item;String id=AnkaiJson.string(row,"id");if(id!=null)result.put(id,AnkaiJson.string(row,label));}return result;
     }
+    public PersonalDashboard withResponse(Map<String,Object> response) {
+        Map<String,Object> updated=AnkaiJson.object(response,"decision");
+        if(updated==null)return this;
+        String id=AnkaiJson.string(updated,"id");
+        List<PersonalDecision> next=new ArrayList<>();
+        for(PersonalDecision old:decisions) next.add(old.id.equals(id)?new PersonalDecision(updated,old.agentName,old.goalTitle,old.sourceTitles):old);
+        return new PersonalDashboard(next);
+    }
     public int openCount(){int count=0;for(PersonalDecision row:decisions)if(row.canRespond())count++;return count;}
 }

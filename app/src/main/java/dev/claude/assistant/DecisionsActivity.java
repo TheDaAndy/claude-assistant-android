@@ -178,7 +178,10 @@ public final class DecisionsActivity extends Activity {
         if("approve".equals(response)&&!"action".equals(d.kind)&&!d.options.isEmpty()&&choice==null&&message.isEmpty()){showStatus("Wähle eine Antwort oder schreibe eine Nachricht.");return;}
         AnkaiConnection connection=store.load();if(connection==null){load(true);return;}
         ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(cards.getWindowToken(),0);cards.clearFocus();
-        execute(connection,c->c.respondToPersonalDecision(d.id,d.revision,response,message,choice),result->{drafts.remove(d.id);choices.remove(d.id);showStatus("Gespeichert");load(true);},"Wird gesendet …");
+        execute(connection,c->c.respondToPersonalDecision(d.id,d.revision,response,message,choice),result->{drafts.remove(d.id);choices.remove(d.id);applySavedResponse(result);showStatus("Gespeichert");load(false);},"Wird gesendet …");
+    }
+    @SuppressWarnings("unchecked") private void applySavedResponse(Object value){
+        if(dashboard!=null && value instanceof Map){dashboard=dashboard.withResponse((Map<String,Object>)value);render();}
     }
     private void evaluate(PersonalDecision d,boolean helpful){AnkaiConnection connection=store.load();if(connection==null)return;execute(connection,c->c.evaluatePersonalDecision(d.id,helpful),r->load(true),"Bewertung wird gespeichert …");}
     private void openWeb(){AnkaiConnection connection=store.load();if(connection!=null)startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(connection.baseUrl)));}
@@ -193,7 +196,7 @@ public final class DecisionsActivity extends Activity {
         if(recorder==null||recordingDecision==null)return;PersonalDecision d=recordingDecision;byte[] audio;
         try{recorder.stop();audio=Files.readAllBytes(recordingFile.toPath());}catch(Exception e){discardRecording();showStatus("Aufnahme zu kurz. Bitte erneut aufnehmen.");return;}
         discardRecording();AnkaiConnection connection=store.load();if(connection==null)return;
-        execute(connection,c->c.sendPersonalDecisionVoice(d.id,d.revision,"feedback.m4a","audio/mp4",audio),r->{drafts.remove(d.id);choices.remove(d.id);load(true);},"Sprachfeedback wird verarbeitet …");
+        execute(connection,c->c.sendPersonalDecisionVoice(d.id,d.revision,"feedback.m4a","audio/mp4",audio),r->{drafts.remove(d.id);choices.remove(d.id);applySavedResponse(r);load(false);},"Sprachfeedback wird verarbeitet …");
     }
     private void discardRecording(){if(recorder!=null){try{recorder.reset();}catch(RuntimeException ignored){}recorder.release();recorder=null;}if(recordingFile!=null){recordingFile.delete();recordingFile=null;}recordingDecision=null;if(recordingButton!=null)recordingButton.setText("Sprachfeedback");recordingButton=null;setControls(!busy);}
     private void showStatus(String text){status.setText(text);status.setVisibility(text==null||text.isEmpty()?View.GONE:View.VISIBLE);}

@@ -1,3 +1,6 @@
+# 1.12.2
+- Gespeicherte Card-Antworten aktualisieren den lokalen Posteingang sofort aus der Serverantwort; kein Warten auf einen vollständigen Dashboard-Neuabruf.
+
 # 1.10.0
 
 ## 1.12.1 (Build 29)

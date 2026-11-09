@@ -4,6 +4,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class PersonalDecisionsTest {
+    public void testSavedAnswerImmediatelyReplacesCardWithoutWaitingForRefresh() {
+        PersonalDashboard old=PersonalDashboard.from(AnkaiJson.parseObject("{\"decisions\":[{\"id\":\"d1\",\"revision\":1,\"kind\":\"question\",\"status\":\"proposed\",\"risk\":1,\"confidence\":90}]}"));
+        PersonalDashboard next=old.withResponse(AnkaiJson.parseObject("{\"decision\":{\"id\":\"d1\",\"revision\":2,\"kind\":\"question\",\"status\":\"answered\",\"risk\":1,\"confidence\":90}}"));
+        Assert.eq(1,old.openCount());Assert.eq(0,next.openCount());Assert.isTrue("answered leaves inbox",!next.decisions.get(0).isPending());
+    }
     public void testDashboardKeepsGoalAgentScoresAndPendingStates() {
         PersonalDashboard dashboard = PersonalDashboard.from(AnkaiJson.parseObject("{\"agents\":[{\"id\":\"a1\",\"name\":\"Zielagent\"}],\"goals\":[{\"id\":\"g1\",\"title\":\"Arzttermine\"}],\"decisions\":[{\"id\":\"decision-one\",\"revision\":2,\"agentId\":\"a1\",\"goalId\":\"g1\",\"kind\":\"strategy\",\"status\":\"proposed\",\"title\":\"Vormittags?\",\"body\":\"Bitte entscheiden\",\"risk\":19.5,\"confidence\":80.5,\"options\":[\"Ja\",\"Nein\"]},{\"id\":\"decision-two\",\"revision\":1,\"kind\":\"action\",\"status\":\"done\",\"risk\":4,\"confidence\":95,\"action\":{\"type\":\"memory_note\",\"payload\":{}}}]}"));
         Assert.eq(1,dashboard.openCount());
