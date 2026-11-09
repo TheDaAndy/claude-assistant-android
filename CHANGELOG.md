@@ -1,3 +1,6 @@
+## Unreleased
+- Speak HTTP(S) URLs as hostnames in native TTS requests and live playback; retain display text, buffer incomplete URL/Markdown tails and preserve playback cancellation.
+
 # 1.10.0
 
 ## 1.12.1 (Build 29)

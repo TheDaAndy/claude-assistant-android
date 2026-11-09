@@ -15,6 +15,16 @@ public class AnkaiClientTest {
         } finally { server.stop(); }
     }
 
+    public void testDirectSpeechRequestSendsOnlyHostname() throws Exception {
+        FakeAnkai server = new FakeAnkai();
+        try {
+            server.respond("/api/tts", 200, "audio/wav", "RIFF-wave");
+            AnkaiClient client = new AnkaiClient(new AnkaiEndpoint(server.baseUrl()), "andy", "secret");
+            client.synthesizeSpeech("[Quelle](https://example.org/private?token=hidden#part)");
+            Assert.eq("{\"text\":\"example.org\"}", server.lastBody);
+        } finally { server.stop(); }
+    }
+
     public void testExpiredCookieReauthenticatesOnceAndKeepsNewSession() throws Exception {
         FakeAnkai fake = new FakeAnkai();
         try {

@@ -26,10 +26,13 @@ public final class LiveRunSpeechController implements LiveRunObserver, AutoClose
             spokenText = current;
             return;
         }
-        String addition = current.startsWith(spokenText)
-                ? current.substring(spokenText.length()).trim()
-                : current.trim();
-        spokenText = current;
+        int end = snapshot.isDone() ? current.length() : SpeechText.stableEnd(current);
+        String stable = current.substring(0, end);
+        String addition = stable.startsWith(spokenText)
+                ? stable.substring(spokenText.length()).trim()
+                : stable.trim();
+        spokenText = stable;
+        addition = SpeechText.forPlayback(addition);
         if (!addition.isEmpty()) run.speakIfAllowed(playback, addition);
     }
 

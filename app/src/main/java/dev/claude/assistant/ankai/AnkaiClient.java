@@ -282,7 +282,7 @@ public final class AnkaiClient {
 
     /** Erzeugt serverseitig kostenfreies Piper-TTS und liefert eine WAV-Datei. */
     public byte[] synthesizeSpeech(String text) throws IOException {
-        String value = text == null ? "" : text.trim();
+        String value = SpeechText.forPlayback(text);
         if (value.isEmpty()) throw new IllegalArgumentException("Text fehlt");
         HttpURLConnection connection = open("/api/tts", "POST");
         connection.setDoOutput(true);
